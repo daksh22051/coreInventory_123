@@ -1,5 +1,7 @@
 const User = require('../models/User');
+const OTPToken = require('../models/OTPToken');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 const { logActivity } = require('../services/activityLogger');
 const { isInMemoryMode } = require('../config/db');
 
@@ -95,6 +97,68 @@ exports.login = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const sendOTPEmail = async (email, otp) => {
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new Error('Email credentials are not configured');
+  }
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Your CoreInventory OTP',
+    text: `Your verification code is ${otp}. It expires in 5 minutes.`,
+  });
+};
+
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+exports.requestOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const otp = generateOTP();
+
+    await OTPToken.findOneAndUpdate(
+      { email },
+      { code: otp, expiresAt: new Date(Date.now() + 5 * 60 * 1000), purpose: 'RESET_PASSWORD' },
+      { upsert: true, new: true }
+    );
+
+    await sendOTPEmail(email, otp);
+
+    await logActivity(null, 'otp_sent', 'User', null, `OTP sent to ${email}`);
+
+    res.json({ success: true, message: 'OTP sent successfully' });
+  } catch (error) {
+    console.error('OTP send error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to send OTP' });
+  }
+};
+
+exports.verifyOTP = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const token = await OTPToken.findOne({ email, code: otp });
+
+    if (!token || token.expiresAt < new Date()) {
+      return res.status(400).json({ success: false, message: 'OTP is invalid or has expired' });
+    }
+
+    await OTPToken.deleteOne({ _id: token._id });
+    res.json({ success: true, message: 'OTP verified' });
+  } catch (error) {
+    console.error('OTP verify error:', error.message);
+    res.status(500).json({ success: false, message: 'Failed to verify OTP' });
   }
 };
 

@@ -1,20 +1,54 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const { signup, login, getMe, updateProfile } = require('../controllers/authController');
+const {
+  signup,
+  login,
+  getMe,
+  updateProfile,
+  requestOTP,
+  verifyOTP,
+} = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 
-router.post('/signup', [
-  body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').isEmail().withMessage('Valid email is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
-], validate, signup);
+router.post(
+  '/signup',
+  [
+    body('name').trim().notEmpty().withMessage('Name is required'),
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  ],
+  validate,
+  signup
+);
 
-router.post('/login', [
-  body('email').isEmail().withMessage('Valid email is required'),
-  body('password').notEmpty().withMessage('Password is required')
-], validate, login);
+router.post(
+  '/login',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('password').notEmpty().withMessage('Password is required'),
+  ],
+  validate,
+  login
+);
+
+router.post(
+  '/otp/request',
+  [body('email').isEmail().withMessage('Valid email is required')],
+  validate,
+  requestOTP
+);
+
+router.post(
+  '/otp/verify',
+  [
+    body('email').isEmail().withMessage('Valid email is required'),
+    body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
+  ],
+  validate,
+  verifyOTP
+);
 
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);

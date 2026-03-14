@@ -42,7 +42,7 @@ exports.getProducts = async (req, res) => {
       });
     }
 
-    const query = { isActive: true };
+  const query = { isActive: true };
 
     if (search) {
       query.$or = [
@@ -55,6 +55,9 @@ exports.getProducts = async (req, res) => {
       query.$expr = { $lte: ['$stockQuantity', '$minStockLevel'] };
     }
 
+    if (!isInMemoryMode()) {
+      await ensureSampleProducts(req.user?._id || null);
+    }
     const total = await Product.countDocuments(query);
     const products = await Product.find(query)
       .populate('warehouse', 'name code')

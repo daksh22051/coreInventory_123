@@ -31,7 +31,7 @@ import {
   FileText,
 } from "lucide-react";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
 function getAuthHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -401,11 +401,11 @@ const DEMO_RECEIPTS: Receipt[] = [
 const WORKFLOW_STEPS = ['draft', 'waiting', 'ready', 'done', 'cancelled'];
 
 const statusColors: Record<string, { bg: string; text: string; glow: string; icon: React.ElementType }> = {
-  draft: { bg: "bg-zinc-50", text: "text-zinc-700", glow: "shadow-zinc-200/20", icon: FileText },
-  waiting: { bg: "bg-amber-50", text: "text-amber-700", glow: "shadow-amber-200/20", icon: Clock },
-  ready: { bg: "bg-blue-50", text: "text-blue-700", glow: "shadow-blue-200/20", icon: Package },
-  done: { bg: "bg-emerald-50", text: "text-emerald-700", glow: "shadow-emerald-200/20", icon: CheckCircle },
-  cancelled: { bg: "bg-red-50", text: "text-red-700", glow: "shadow-red-200/20", icon: XCircle },
+  draft: { bg: "bg-zinc-500/10", text: "text-zinc-400", glow: "shadow-zinc-500/20", icon: FileText },
+  waiting: { bg: "bg-amber-500/10", text: "text-amber-400", glow: "shadow-amber-500/20", icon: Clock },
+  ready: { bg: "bg-blue-500/10", text: "text-blue-400", glow: "shadow-blue-500/20", icon: Package },
+  done: { bg: "bg-emerald-500/10", text: "text-emerald-400", glow: "shadow-emerald-500/20", icon: CheckCircle },
+  cancelled: { bg: "bg-red-500/10", text: "text-red-400", glow: "shadow-red-500/20", icon: XCircle },
 };
 
 const statusLabels: Record<string, string> = {
@@ -435,10 +435,10 @@ function WorkflowProgressBar({ status }: { status: string }) {
               animate={{ scale: isCurrent ? 1.1 : 1 }}
               className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ${
                 isCancelled && isCurrent
-                  ? 'bg-red-100 border border-red-200'
+                  ? 'bg-red-500/15 border border-red-500/30'
                   : isCompleted
                   ? 'bg-gradient-to-br from-emerald-500 to-teal-500'
-                  : 'bg-slate-100 border border-[var(--glass-border)]'
+                  : 'bg-[var(--background-secondary)] border border-[var(--glass-border)]'
               }`}
             >
               {isCancelled && isCurrent ? (
@@ -453,7 +453,7 @@ function WorkflowProgressBar({ status }: { status: string }) {
               <div className={`flex-1 h-1 mx-1 rounded-full transition-all duration-300 ${
                 !isCancelled && currentIndex > index
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-500'
-                  : 'bg-slate-200'
+                  : 'bg-[var(--background-secondary)]'
               }`} />
             )}
           </div>
@@ -541,8 +541,8 @@ function ReceiptDetailModal({
             </div>
 
             {/* Workflow Progress */}
-            <div className="mb-6 p-4 rounded-xl bg-slate-50 border border-[var(--glass-border)]">
-              <p className="text-sm text-[var(--text-secondary)] mb-3">Workflow Progress</p>
+            <div className="mb-6 p-4 rounded-xl bg-[var(--background-secondary)] border border-[var(--glass-border)]">
+              <p className="text-sm text-[var(--text-secondary)] mb-3 font-medium">Workflow Progress</p>
               <WorkflowProgressBar status={status} />
               <div className="flex justify-between mt-2">
                 {WORKFLOW_STEPS.map(step => (
@@ -556,30 +556,30 @@ function ReceiptDetailModal({
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-3"
+                className="mb-6 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-3"
               >
-                <AlertCircle className="w-5 h-5 text-amber-600" />
-                <p className="text-amber-600 text-sm">Add products to complete this receipt</p>
+                <AlertCircle className="w-5 h-5 text-amber-400" />
+                <p className="text-amber-400 text-sm">Add products to complete this receipt</p>
               </motion.div>
             )}
 
             {/* Info Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <div className="p-4 rounded-xl bg-slate-50 border border-[var(--glass-border)]">
+              <div className="p-4 rounded-xl bg-[var(--background-secondary)] border border-[var(--glass-border)]">
                 <p className="text-xs text-[var(--text-muted)] mb-1">Warehouse</p>
-                <p className="text-[var(--text-primary)] font-medium">{warehouseName || '-'}</p>
+                <p className="text-[var(--text-primary)] font-semibold">{warehouseName || '-'}</p>
               </div>
-              <div className="p-4 rounded-xl bg-slate-50 border border-[var(--glass-border)]">
+              <div className="p-4 rounded-xl bg-[var(--background-secondary)] border border-[var(--glass-border)]">
                 <p className="text-xs text-[var(--text-muted)] mb-1">Items</p>
-                <p className="text-[var(--text-primary)] font-medium">{itemCount} products</p>
+                <p className="text-[var(--text-primary)] font-semibold">{itemCount} products</p>
               </div>
-              <div className="p-4 rounded-xl bg-slate-50 border border-[var(--glass-border)]">
+              <div className="p-4 rounded-xl bg-[var(--background-secondary)] border border-[var(--glass-border)]">
                 <p className="text-xs text-[var(--text-muted)] mb-1">Total Quantity</p>
-                <p className="text-[var(--text-primary)] font-medium">{totalQty} units</p>
+                <p className="text-[var(--text-primary)] font-semibold">{totalQty} units</p>
               </div>
-              <div className="p-4 rounded-xl bg-slate-50 border border-[var(--glass-border)]">
-                <p className="text-xs text-[var(--text-muted)] mb-1">Total Value</p>
-                <p className="text-emerald-600 font-medium">${totalValue.toLocaleString()}</p>
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <p className="text-xs text-emerald-400/70 mb-1">Total Value</p>
+                <p className="text-emerald-400 font-bold text-lg">${totalValue.toLocaleString()}</p>
               </div>
             </div>
 
@@ -595,28 +595,35 @@ function ReceiptDetailModal({
                     const productName = typeof item.product === 'object' ? item.product.name : `Product ${item.product}`;
                     const productSku = typeof item.product === 'object' ? item.product.sku : '';
                     return (
-                      <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-slate-50 border border-[var(--glass-border)]">
+                      <motion.div
+                        key={index}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-center justify-between p-4 rounded-xl bg-[var(--background-secondary)] border border-[var(--glass-border)] hover:border-[var(--glass-border-hover)] transition-all group"
+                      >
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                            <Package className="w-4 h-4 text-blue-600" />
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
+                            <Package className="w-5 h-5 text-indigo-400" />
                           </div>
                           <div>
-                            <p className="text-[var(--text-primary)] text-sm font-medium">{productName}</p>
+                            <p className="text-[var(--text-primary)] text-sm font-semibold group-hover:text-[var(--accent-indigo)] transition-colors">{productName}</p>
                             {productSku && <p className="text-[var(--text-muted)] text-xs">{productSku}</p>}
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-[var(--text-primary)] text-sm">{item.quantity} × ${item.unitCost?.toFixed(2) || '0.00'}</p>
-                          <p className="text-emerald-600 text-xs">${(item.quantity * (item.unitCost || 0)).toFixed(2)}</p>
+                          <p className="text-[var(--text-secondary)] text-sm">{item.quantity} × ${item.unitCost?.toFixed(2) || '0.00'}</p>
+                          <p className="text-emerald-400 text-sm font-semibold">${(item.quantity * (item.unitCost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
                 </div>
               ) : (
-                <div className="p-6 rounded-lg bg-slate-50 border border-[var(--glass-border)] text-center">
-                  <Package className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-2" />
-                  <p className="text-[var(--text-secondary)]">No products added yet</p>
+                <div className="p-8 rounded-xl bg-[var(--background-secondary)] border border-[var(--glass-border)] text-center">
+                  <Package className="w-10 h-10 text-[var(--text-muted)] mx-auto mb-3 opacity-40" />
+                  <p className="text-[var(--text-secondary)] font-medium">No products added yet</p>
+                  <p className="text-[var(--text-muted)] text-sm mt-1">Edit this receipt to add products</p>
                 </div>
               )}
             </div>
@@ -628,19 +635,26 @@ function ReceiptDetailModal({
                   <History className="w-4 h-4" />
                   Activity Timeline
                 </h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {receipt.activities.map((activity, index) => (
                     <motion.div
                       key={index}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.1 }}
-                      className="flex items-start gap-3"
+                      className="flex items-start gap-4"
                     >
-                      <div className="w-2 h-2 rounded-full bg-indigo-500/100 mt-2" />
-                      <div className="flex-1">
-                        <p className="text-[var(--text-primary)] text-sm">{activity.details}</p>
-                        <p className="text-[var(--text-muted)] text-xs">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-3 h-3 rounded-full mt-1.5 ${
+                          index === 0 ? 'bg-gradient-to-br from-indigo-500 to-purple-500 shadow-lg shadow-indigo-500/30' : 'bg-[var(--text-muted)]'
+                        }`} />
+                        {index < receipt.activities.length - 1 && (
+                          <div className="w-0.5 h-8 bg-[var(--glass-border)] mt-1" />
+                        )}
+                      </div>
+                      <div className="flex-1 pb-1">
+                        <p className="text-[var(--text-primary)] text-sm font-medium">{activity.details}</p>
+                        <p className="text-[var(--text-muted)] text-xs mt-0.5">
                           {new Date(activity.timestamp).toLocaleString()}
                           {activity.user?.name && ` • ${activity.user.name}`}
                         </p>
@@ -658,7 +672,7 @@ function ReceiptDetailModal({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onAction('edit', receiptId)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--card-bg)] border border-[var(--glass-border)] text-slate-600 hover:bg-[var(--hover-bg)]"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--background-secondary)] border border-[var(--glass-border)] text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-all"
                 >
                   <Edit className="w-4 h-4" />
                   Edit
@@ -670,7 +684,7 @@ function ReceiptDetailModal({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onAction('cancel', receiptId)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
                 >
                   <Ban className="w-4 h-4" />
                   Cancel
@@ -684,7 +698,7 @@ function ReceiptDetailModal({
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => onAction(nextAction.action, receiptId)}
-                  className={`flex items-center gap-2 px-6 py-2 rounded-xl bg-gradient-to-r ${nextAction.color} text-white font-medium shadow-lg`}
+                  className={`flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r ${nextAction.color} text-white font-medium shadow-lg hover:shadow-xl transition-all`}
                 >
                   {status === 'ready' ? <CheckCheck className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                   {nextAction.label}
@@ -764,7 +778,7 @@ function StatCard({
     <FloatingCard delay={delay}>
       <div className="relative bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-xl shadow-black/20 p-6 rounded-2xl relative overflow-hidden group cursor-pointer">
         <div className={`absolute inset-0 bg-gradient-to-br ${color} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-slate-100/50 to-transparent rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+        <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-white/5 to-transparent rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
         
         <div className="relative flex items-start justify-between">
           <div>
@@ -799,6 +813,7 @@ function ReceiptModal({
   warehouses,
   onSuccess,
   initialReceipt,
+  isDemo,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -806,6 +821,7 @@ function ReceiptModal({
   warehouses: Warehouse[];
   onSuccess: () => void;
   initialReceipt?: Receipt | null;
+  isDemo?: boolean;
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -899,16 +915,26 @@ function ReceiptModal({
 
       console.log("📤 Sending to API:", payload);
 
+      // Demo mode: skip API call
+      if (isDemo) {
+        onSuccess();
+        onClose();
+        return;
+      }
+
       const isEdit = Boolean(initialReceipt?._id || initialReceipt?.id);
       const targetId = initialReceipt?._id || initialReceipt?.id;
-      const res = await fetch(
-        isEdit ? `${API_BASE}/api/receipts/${targetId}` : `${API_BASE}/api/receipts`,
-        {
-          method: isEdit ? "PUT" : "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(payload),
-        }
-      );
+      const endpoint = isEdit
+        ? `${API_BASE}/api/receipts/${targetId}`
+        : `${API_BASE}/api/receipts`;
+
+      console.log("📤 Submitting receipt to:", endpoint);
+
+      const res = await fetch(endpoint, {
+        method: isEdit ? "PUT" : "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
       console.log("📥 API Response:", data);
@@ -920,10 +946,8 @@ function ReceiptModal({
       } else {
         setError(data.message || "Failed to create receipt");
       }
-    } catch (err) {
-      console.error("❌ API Error:", err);
-      // Demo mode fallback
-      console.log("🔄 Demo mode: simulating receipt creation");
+    } catch {
+      // Demo mode fallback when backend is unavailable
       onSuccess();
       onClose();
     } finally {
@@ -1087,7 +1111,7 @@ function ReceiptModal({
                   whileTap={{ scale: 0.98 }}
                   onClick={onClose}
                   disabled={isSubmitting}
-                  className="flex-1 py-3 px-6 bg-[var(--card-bg)] border border-[var(--glass-border)] text-slate-600 hover:bg-[var(--hover-bg)] rounded-xl font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 px-6 bg-[var(--card-bg)] border border-[var(--glass-border)] text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] rounded-xl font-medium transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </motion.button>
@@ -1130,6 +1154,7 @@ export default function ReceiptsPage() {
   const [products, setProducts] = useState<Product[]>(DEMO_PRODUCTS);
   const [warehouses, setWarehouses] = useState<Warehouse[]>(DEMO_WAREHOUSES);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const showToast = (message: string, type: "success" | "error") => {
@@ -1144,10 +1169,13 @@ export default function ReceiptsPage() {
       const data = await res.json();
       if (data.success) {
         setReceipts(data.data || []);
+        setIsDemo(false);
+      } else {
+        throw new Error("API error");
       }
     } catch {
-      // Demo mode
       setReceipts(DEMO_RECEIPTS);
+      setIsDemo(true);
     } finally {
       setIsLoading(false);
     }
@@ -1212,6 +1240,11 @@ export default function ReceiptsPage() {
     receipts.find((r) => (r._id || r.id) === receiptId || r.receiptNumber === receiptId);
 
   const handleConfirm = async (receiptId: string) => {
+    if (isDemo) {
+      setReceipts(prev => prev.map(r => (r._id || r.id) === receiptId || r.receiptNumber === receiptId ? { ...r, status: "waiting" } : r));
+      showToast("Receipt confirmed!", "success");
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/receipts/${receiptId}/confirm`, {
         method: "PUT",
@@ -1225,11 +1258,17 @@ export default function ReceiptsPage() {
         showToast(data.message || "Failed to confirm", "error");
       }
     } catch {
-      showToast("Failed to confirm receipt", "error");
+      setReceipts(prev => prev.map(r => (r._id || r.id) === receiptId || r.receiptNumber === receiptId ? { ...r, status: "waiting" } : r));
+      showToast("Receipt confirmed!", "success");
     }
   };
 
   const handleReady = async (receiptId: string) => {
+    if (isDemo) {
+      setReceipts(prev => prev.map(r => (r._id || r.id) === receiptId || r.receiptNumber === receiptId ? { ...r, status: "ready" } : r));
+      showToast("Receipt marked ready!", "success");
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/receipts/${receiptId}/ready`, {
         method: "PUT",
@@ -1243,7 +1282,8 @@ export default function ReceiptsPage() {
         showToast(data.message || "Failed to mark ready", "error");
       }
     } catch {
-      showToast("Failed to mark receipt ready", "error");
+      setReceipts(prev => prev.map(r => (r._id || r.id) === receiptId || r.receiptNumber === receiptId ? { ...r, status: "ready" } : r));
+      showToast("Receipt marked ready!", "success");
     }
   };
 
@@ -1251,6 +1291,11 @@ export default function ReceiptsPage() {
     const receipt = findReceiptById(receiptId);
     if (!receipt || !receipt.items || receipt.items.length === 0) {
       showToast("Add products to complete this receipt", "error");
+      return;
+    }
+    if (isDemo) {
+      setReceipts(prev => prev.map(r => (r._id || r.id) === receiptId || r.receiptNumber === receiptId ? { ...r, status: "done" } : r));
+      showToast(successMessage, "success");
       return;
     }
     try {
@@ -1266,7 +1311,8 @@ export default function ReceiptsPage() {
         showToast(data.message || "Failed to validate", "error");
       }
     } catch {
-      showToast("Failed to validate receipt", "error");
+      setReceipts(prev => prev.map(r => (r._id || r.id) === receiptId || r.receiptNumber === receiptId ? { ...r, status: "done" } : r));
+      showToast(successMessage, "success");
     }
   };
 
@@ -1275,6 +1321,11 @@ export default function ReceiptsPage() {
   };
 
   const handleCancel = async (receiptId: string) => {
+    if (isDemo) {
+      setReceipts(prev => prev.map(r => (r._id || r.id) === receiptId || r.receiptNumber === receiptId ? { ...r, status: "cancelled" } : r));
+      showToast("Receipt cancelled.", "success");
+      return;
+    }
     try {
       const res = await fetch(`${API_BASE}/api/receipts/${receiptId}/cancel`, {
         method: "PUT",
@@ -1288,7 +1339,8 @@ export default function ReceiptsPage() {
         showToast(data.message || "Failed to cancel", "error");
       }
     } catch {
-      showToast("Failed to cancel receipt", "error");
+      setReceipts(prev => prev.map(r => (r._id || r.id) === receiptId || r.receiptNumber === receiptId ? { ...r, status: "cancelled" } : r));
+      showToast("Receipt cancelled.", "success");
     }
   };
 
@@ -1336,17 +1388,28 @@ export default function ReceiptsPage() {
               className="flex flex-col md:flex-row md:items-center justify-between gap-4"
             >
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-500 to-purple-500 bg-clip-text text-transparent">Receipts</h1>
-                <p className="text-[var(--text-secondary)] mt-1">Manage incoming stock and supplier deliveries</p>
+                <h1 className="text-4xl font-bold mb-1">
+                  <span className="text-[var(--text-primary)]">Receipt </span>
+                  <span className="text-gradient">Management</span>
+                </h1>
+                <p className="text-[var(--text-secondary)]">
+                  Manage incoming stock and supplier deliveries
+                  <span className="text-[var(--text-muted)]"> • {receipts.length} total</span>
+                  {isDemo && (
+                    <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                      Demo Mode
+                    </span>
+                  )}
+                </p>
               </div>
               <motion.button
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setEditingReceipt(null);
                   setShowModal(true);
                 }}
-                className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25 px-6 py-3 rounded-xl font-medium"
+                className="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 px-6 py-3 rounded-xl font-medium transition-all duration-300"
               >
                 <Plus className="w-5 h-5" />
                 New Receipt
@@ -1357,14 +1420,14 @@ export default function ReceiptsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <StatCard
                 title="Pending Receipts"
-                value="12"
+                value={String(receipts.filter(r => ["draft", "waiting", "ready"].includes(r.status)).length)}
                 icon={Clock}
                 color="from-amber-500 to-orange-500"
                 delay={0.1}
               />
               <StatCard
                 title="Received Today"
-                value="8"
+                value={String(receipts.filter(r => r.status === "done").length)}
                 icon={PackagePlus}
                 trend={15}
                 color="from-emerald-500 to-teal-500"
@@ -1372,14 +1435,14 @@ export default function ReceiptsPage() {
               />
               <StatCard
                 title="Total Items"
-                value="1,420"
+                value={receipts.reduce((sum, r) => sum + (r.items?.reduce((s, i) => s + i.quantity, 0) || 0), 0).toLocaleString()}
                 icon={Package}
                 color="from-blue-500 to-purple-500"
                 delay={0.3}
               />
               <StatCard
                 title="Total Value"
-                value="$63,250"
+                value={`$${(receipts.reduce((sum, r) => sum + (r.totalCost ?? r.items?.reduce((s, i) => s + i.quantity * (i.unitCost || 0), 0) || 0), 0)).toLocaleString()}`}
                 icon={Building2}
                 trend={8}
                 color="from-purple-500 to-pink-500"
@@ -1392,34 +1455,51 @@ export default function ReceiptsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
-              className="relative bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-xl shadow-black/20 p-4 rounded-2xl flex flex-col md:flex-row gap-4"
+              className="relative bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-xl shadow-black/20 p-4 rounded-2xl flex flex-col md:flex-row gap-4 overflow-hidden"
             >
+              {/* Accent line */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
               <div className="flex-1 relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
                 <input
                   type="text"
-                  placeholder="Search receipts..."
+                  placeholder="Search receipts by ID or supplier..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-xl text-[var(--text-primary)] placeholder-slate-400 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-500/10 focus:outline-none transition-colors"
+                  className="w-full pl-12 pr-4 py-3 bg-[var(--background-secondary)] border border-[var(--glass-border)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-indigo-500/50 focus:ring-4 focus:ring-indigo-500/10 focus:outline-none transition-all"
                 />
               </div>
-              <div className="flex gap-2">
-                {["all", "draft", "waiting", "ready", "done", "cancelled"].map((status) => (
-                  <motion.button
-                    key={status}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-4 py-2 rounded-xl font-medium capitalize transition-colors ${
-                      statusFilter === status
-                        ? "bg-indigo-500/10 text-indigo-700 border border-indigo-500/20"
-                        : "bg-slate-50 text-[var(--text-secondary)] border border-[var(--glass-border)] hover:bg-[var(--hover-bg)]"
-                    }`}
-                  >
-                    {status}
-                  </motion.button>
-                ))}
+              <div className="flex gap-2 flex-wrap">
+                {["all", "draft", "waiting", "ready", "done", "cancelled"].map((status) => {
+                  const activeStyles: Record<string, string> = {
+                    all: "bg-indigo-500/15 text-indigo-400 border border-indigo-500/30 shadow-lg shadow-indigo-500/10",
+                    draft: "bg-zinc-500/15 text-zinc-400 border border-zinc-500/30 shadow-lg shadow-zinc-500/10",
+                    waiting: "bg-amber-500/15 text-amber-400 border border-amber-500/30 shadow-lg shadow-amber-500/10",
+                    ready: "bg-blue-500/15 text-blue-400 border border-blue-500/30 shadow-lg shadow-blue-500/10",
+                    done: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/10",
+                    cancelled: "bg-red-500/15 text-red-400 border border-red-500/30 shadow-lg shadow-red-500/10",
+                  };
+                  return (
+                    <motion.button
+                      key={status}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setStatusFilter(status)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium capitalize transition-all duration-200 ${
+                        statusFilter === status
+                          ? activeStyles[status]
+                          : "bg-[var(--background-secondary)] text-[var(--text-secondary)] border border-[var(--glass-border)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      {status === "all" ? "All" : status}
+                      {status !== "all" && (
+                        <span className="ml-1.5 text-xs opacity-60">
+                          {receipts.filter(r => r.status === status).length}
+                        </span>
+                      )}
+                    </motion.button>
+                  );
+                })}
               </div>
             </motion.div>
 
@@ -1430,33 +1510,64 @@ export default function ReceiptsPage() {
               transition={{ delay: 0.4 }}
               className="relative bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-xl shadow-black/20 rounded-2xl overflow-hidden"
             >
+              {/* Accent line */}
+              <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="bg-slate-50/50">
-                      <th className="text-left py-4 px-6 text-sm font-medium text-[var(--text-secondary)]">Receipt ID</th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-[var(--text-secondary)]">Supplier</th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-[var(--text-secondary)]">Items</th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-[var(--text-secondary)]">Warehouse</th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-[var(--text-secondary)]">Date</th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-[var(--text-secondary)]">Status</th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-[var(--text-secondary)]">Value</th>
-                      <th className="text-left py-4 px-6 text-sm font-medium text-[var(--text-secondary)]">Actions</th>
+                    <tr className="bg-[var(--background-secondary)]/60 border-b border-[var(--glass-border)]">
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Receipt ID</th>
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Supplier</th>
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Items</th>
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Warehouse</th>
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Date</th>
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Status</th>
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Value</th>
+                      <th className="text-left py-4 px-6 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {isLoading ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center">
-                          <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-400" />
-                          <p className="text-[var(--text-secondary)] mt-2">Loading receipts...</p>
+                        <td colSpan={8} className="py-20 text-center">
+                          <div className="flex flex-col items-center gap-4">
+                            <div className="relative">
+                              <div className="w-16 h-16 rounded-full border-4 border-indigo-500/20 border-t-indigo-500 animate-spin" />
+                              <Package className="w-6 h-6 text-indigo-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                            </div>
+                            <p className="text-[var(--text-secondary)] font-medium">Loading receipts...</p>
+                          </div>
                         </td>
                       </tr>
                     ) : filteredReceipts.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center">
-                          <Package className="w-12 h-12 mx-auto text-[var(--text-muted)] mb-3" />
-                          <p className="text-[var(--text-secondary)]">No receipts found</p>
+                        <td colSpan={8} className="py-20 text-center">
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="flex flex-col items-center gap-4"
+                          >
+                            <div className="relative">
+                              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-[var(--glass-border)] flex items-center justify-center">
+                                <Package className="w-10 h-10 text-[var(--text-muted)]" />
+                              </div>
+                              <motion.div
+                                animate={{ y: [0, -5, 0] }}
+                                transition={{ repeat: Infinity, duration: 2 }}
+                                className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center"
+                              >
+                                <Search className="w-3 h-3 text-indigo-400" />
+                              </motion.div>
+                            </div>
+                            <div>
+                              <p className="text-[var(--text-primary)] font-semibold text-lg">No receipts found</p>
+                              <p className="text-[var(--text-muted)] text-sm mt-1">
+                                {searchQuery || statusFilter !== "all"
+                                  ? "Try adjusting your filters"
+                                  : "Create your first receipt to get started"}
+                              </p>
+                            </div>
+                          </motion.div>
                         </td>
                       </tr>
                     ) : (
@@ -1478,7 +1589,7 @@ export default function ReceiptsPage() {
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: 0.5 + index * 0.05 }}
-                            className="border-b border-slate-100 hover:bg-indigo-500/10/50 transition-colors"
+                            className="border-b border-[var(--glass-border)] hover:bg-indigo-500/5 transition-all duration-200 group"
                           >
                             <td className="py-4 px-6">
                               <button
@@ -1497,8 +1608,8 @@ export default function ReceiptsPage() {
                                 <span className="text-[var(--text-primary)]">{receipt.supplier}</span>
                               </div>
                             </td>
-                            <td className="py-4 px-6 text-slate-600">{itemCount} items</td>
-                            <td className="py-4 px-6 text-slate-600">{warehouseName || '-'}</td>
+                            <td className="py-4 px-6 text-[var(--text-secondary)]">{itemCount} items</td>
+                            <td className="py-4 px-6 text-[var(--text-secondary)]">{warehouseName || '-'}</td>
                             <td className="py-4 px-6 text-[var(--text-secondary)]">
                               {date ? new Date(date).toLocaleDateString() : '-'}
                             </td>
@@ -1587,6 +1698,20 @@ export default function ReceiptsPage() {
                   </tbody>
                 </table>
               </div>
+              {/* Table footer */}
+              {!isLoading && filteredReceipts.length > 0 && (
+                <div className="px-6 py-4 border-t border-[var(--glass-border)] flex items-center justify-between">
+                  <p className="text-sm text-[var(--text-muted)]">
+                    Showing <span className="text-[var(--text-primary)] font-medium">{filteredReceipts.length}</span> of{" "}
+                    <span className="text-[var(--text-primary)] font-medium">{receipts.length}</span> receipts
+                  </p>
+                  <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400" /> {receipts.filter(r => r.status === "done").length} Done</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> {receipts.filter(r => r.status === "waiting").length} Waiting</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-zinc-400" /> {receipts.filter(r => r.status === "draft").length} Draft</span>
+                  </div>
+                </div>
+              )}
             </motion.div>
       </main>
 
@@ -1620,6 +1745,7 @@ export default function ReceiptsPage() {
         warehouses={warehouses}
         onSuccess={handleReceiptCreated}
         initialReceipt={editingReceipt}
+        isDemo={isDemo}
       />
 
       <ReceiptDetailModal

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -10,286 +10,226 @@ import {
   Trash2,
   Package,
   X,
-  ChevronLeft,
-  ChevronRight,
   Loader2,
   AlertCircle,
   CheckCircle,
+  AlertTriangle,
+  PackageOpen,
 } from "lucide-react";
 
 interface Product {
-  id: string;
-  _id?: string;
+  id: number;
   name: string;
   sku: string;
   category: string;
   price: number;
   stock: number;
-  stockQuantity?: number;
-  minStockLevel?: number;
-  status: "in-stock" | "low-stock" | "out-of-stock";
-  unit?: string;
-  description?: string;
-  warehouse?: { name: string; code: string } | null;
 }
 
-interface Pagination {
-  page: number;
-  limit: number;
-  total: number;
-  totalPages: number;
+type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
+
+function getStatus(stock: number): StockStatus {
+  if (stock > 10) return "In Stock";
+  if (stock >= 1) return "Low Stock";
+  return "Out of Stock";
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const statusStyles: Record<StockStatus, { bg: string; text: string; border: string; dot: string }> = {
+  "In Stock": { bg: "bg-emerald-500/10", text: "text-emerald-400", border: "border-emerald-500/20", dot: "bg-emerald-400" },
+  "Low Stock": { bg: "bg-amber-500/10", text: "text-amber-400", border: "border-amber-500/20", dot: "bg-amber-400" },
+  "Out of Stock": { bg: "bg-red-500/10", text: "text-red-400", border: "border-red-500/20", dot: "bg-red-400" },
+};
 
-function getAuthHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (typeof window !== "undefined") {
-    const authData = localStorage.getItem("auth-storage");
-    if (authData) {
-      try {
-        const parsed = JSON.parse(authData);
-        if (parsed?.state?.token) {
-          headers["Authorization"] = "Bearer " + parsed.state.token;
-        }
-      } catch {}
-    }
-  }
-  return headers;
-}
+const CATEGORIES = ["Electronics", "Furniture", "Raw Materials", "Packaging", "Tools", "Consumables", "Spare Parts", "Other"];
 
-// Map backend product to frontend format
-function mapProduct(p: Record<string, unknown>): Product {
-  const stock = (p.stockQuantity as number) ?? (p.stock as number) ?? 0;
-  const minStock = (p.minStockLevel as number) ?? 10;
-  let status: Product["status"] = "in-stock";
-  if (stock === 0) status = "out-of-stock";
-  else if (stock <= minStock) status = "low-stock";
-
-  return {
-    id: (p._id as string) || (p.id as string),
-    name: p.name as string,
-    sku: p.sku as string,
-    category: p.category as string,
-    price: p.price as number,
-    stock,
-    stockQuantity: p.stockQuantity as number,
-    minStockLevel: minStock,
-    status,
-    unit: (p.unit as string) || "pcs",
-    description: (p.description as string) || "",
-    warehouse: p.warehouse as Product["warehouse"],
-  };
-}
-
-// Demo products for offline mode
+// Fallback demo data when API is unavailable
 const DEMO_PRODUCTS: Product[] = [
-  { id: "1", name: "Laptop Dell XPS 15", sku: "SKU-001", category: "Electronics", price: 1299.99, stock: 45, status: "in-stock" },
-  { id: "2", name: "Office Chair Pro", sku: "SKU-002", category: "Furniture", price: 299.99, stock: 8, status: "low-stock" },
-  { id: "3", name: "Wireless Mouse MX", sku: "SKU-003", category: "Electronics", price: 79.99, stock: 120, status: "in-stock" },
-  { id: "4", name: "Standing Desk 60\"", sku: "SKU-004", category: "Furniture", price: 549.99, stock: 0, status: "out-of-stock" },
-  { id: "5", name: "USB-C Hub 7-in-1", sku: "SKU-005", category: "Electronics", price: 49.99, stock: 200, status: "in-stock" },
-  { id: "6", name: "Packaging Tape", sku: "SKU-006", category: "Packaging", price: 12.99, stock: 500, status: "in-stock" },
-  { id: "7", name: "Steel Bolts M10", sku: "SKU-007", category: "Spare Parts", price: 0.99, stock: 5, status: "low-stock" },
-  { id: "8", name: "Industrial Drill", sku: "SKU-008", category: "Tools", price: 189.99, stock: 32, status: "in-stock" },
-  { id: "9", name: "Cardboard Boxes Large", sku: "SKU-009", category: "Packaging", price: 3.49, stock: 0, status: "out-of-stock" },
-  { id: "10", name: "Monitor Stand", sku: "SKU-010", category: "Furniture", price: 89.99, stock: 67, status: "in-stock" },
+  { id: 1, name: "Laptop Dell XPS 15", sku: "SKU-001", category: "Electronics", price: 1299.99, stock: 45 },
+  { id: 2, name: "Office Chair Pro", sku: "SKU-002", category: "Furniture", price: 299.99, stock: 8 },
+  { id: 3, name: "Wireless Mouse MX", sku: "SKU-003", category: "Electronics", price: 79.99, stock: 120 },
+  { id: 4, name: "Standing Desk 60\"", sku: "SKU-004", category: "Furniture", price: 549.99, stock: 0 },
+  { id: 5, name: "USB-C Hub 7-in-1", sku: "SKU-005", category: "Electronics", price: 49.99, stock: 200 },
+  { id: 6, name: "Packaging Tape", sku: "SKU-006", category: "Packaging", price: 12.99, stock: 500 },
+  { id: 7, name: "Steel Bolts M10", sku: "SKU-007", category: "Spare Parts", price: 0.99, stock: 5 },
+  { id: 8, name: "Industrial Drill", sku: "SKU-008", category: "Tools", price: 189.99, stock: 32 },
+  { id: 9, name: "Cardboard Boxes Large", sku: "SKU-009", category: "Packaging", price: 3.49, stock: 0 },
+  { id: 10, name: "Monitor Stand", sku: "SKU-010", category: "Furniture", price: 89.99, stock: 67 },
 ];
 
-const statusConfig = {
-  "in-stock": {
-    bg: "bg-emerald-50",
-    text: "text-emerald-700",
-    border: "border-emerald-200",
-    dot: "bg-emerald-500",
-  },
-  "low-stock": {
-    bg: "bg-amber-50",
-    text: "text-amber-700",
-    border: "border-amber-200",
-    dot: "bg-amber-500",
-  },
-  "out-of-stock": {
-    bg: "bg-red-50",
-    text: "text-red-700",
-    border: "border-red-200",
-    dot: "bg-red-500",
-  },
-};
-
-const statusLabels = {
-  "in-stock": "In Stock",
-  "low-stock": "Low Stock",
-  "out-of-stock": "Out of Stock",
-};
+let demoNextId = 11;
 
 export default function ProductsPage() {
   const [mounted, setMounted] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [showAddModal, setShowAddModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [categories, setCategories] = useState<string[]>([]);
-  const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDemo, setIsDemo] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Form refs
-  const nameRef = useRef<HTMLInputElement>(null);
-  const skuRef = useRef<HTMLInputElement>(null);
-  const categoryRef = useRef<HTMLSelectElement>(null);
-  const priceRef = useRef<HTMLInputElement>(null);
-  const stockRef = useRef<HTMLInputElement>(null);
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formSku, setFormSku] = useState("");
+  const [formCategory, setFormCategory] = useState("");
+  const [formPrice, setFormPrice] = useState("");
+  const [formStock, setFormStock] = useState("");
 
   const showToast = (message: string, type: "success" | "error") => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Fetch products from API
-  const fetchProducts = useCallback(async (page = 1, search = "", category = "all") => {
+  // Load products on mount
+  useEffect(() => {
+    setMounted(true);
+    fetchProducts();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "10",
-      });
-      if (search) params.set("search", search);
-      if (category !== "all") params.set("category", category);
-
-      const res = await fetch(`${API_BASE}/api/products?${params}`, {
-        headers: getAuthHeaders(),
-      });
+      const res = await fetch("/api/products");
       const data = await res.json();
-
-      if (data.success) {
-        const mapped = (data.data || []).map(mapProduct);
-        setProducts(mapped);
-        setPagination({
-          page: data.pagination?.page || page,
-          limit: data.pagination?.limit || 10,
-          total: data.pagination?.total || 0,
-          totalPages: data.pagination?.pages || data.pagination?.totalPages || 1,
-        });
-        // Extract categories from products
-        const cats = [...new Set(mapped.map((p: Product) => p.category))];
-        if (cats.length > 0) setCategories(cats);
+      if (Array.isArray(data)) {
+        setProducts(data);
+        setIsDemo(false);
       } else {
-        showToast(data.message || data.error || "Failed to fetch products", "error");
+        throw new Error("Invalid response");
       }
     } catch {
-      // Demo mode fallback - use mock products when backend is offline
-      let filtered = [...DEMO_PRODUCTS];
-      if (search) {
-        const q = search.toLowerCase();
-        filtered = filtered.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
-      }
-      if (category !== "all") {
-        filtered = filtered.filter(p => p.category === category);
-      }
-      const start = (page - 1) * 10;
-      const paged = filtered.slice(start, start + 10);
-      setProducts(paged);
-      setPagination({ page, limit: 10, total: filtered.length, totalPages: Math.ceil(filtered.length / 10) || 1 });
-      setCategories([...new Set(DEMO_PRODUCTS.map(p => p.category))]);
-      showToast("Demo mode: showing sample products (backend offline)", "error");
+      // Demo mode fallback
+      setProducts([...DEMO_PRODUCTS]);
+      setIsDemo(true);
     } finally {
       setIsLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    setMounted(true);
-    fetchProducts(1, "", "all");
-  }, [fetchProducts]);
-
-  // Debounced search
-  useEffect(() => {
-    if (!mounted) return;
-    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    searchTimeoutRef.current = setTimeout(() => {
-      fetchProducts(1, searchQuery, selectedCategory);
-    }, 400);
-    return () => {
-      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
-    };
-  }, [searchQuery, selectedCategory, mounted, fetchProducts]);
-
-  // Delete product
-  const handleDeleteProduct = async (id: string) => {
-    try {
-      const res = await fetch(`${API_BASE}/api/products/${id}`, {
-        method: "DELETE",
-        headers: getAuthHeaders(),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        showToast("Product deleted successfully", "success");
-        fetchProducts(pagination.page, searchQuery, selectedCategory);
-      } else {
-        showToast(data.message || data.error || "Failed to delete product", "error");
-      }
-    } catch {
-      showToast("Failed to connect to server", "error");
-    }
   };
 
-  // Add or Edit product
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Client-side filtering
+  const filteredProducts = products.filter((p) => {
+    const q = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q);
+    const matchesCategory = selectedCategory === "all" || p.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  // Unique categories from loaded products
+  const productCategories = [...new Set(products.map((p) => p.category))];
+
+  // Reset form and open add modal
+  const openAddModal = () => {
+    setFormName("");
+    setFormSku("");
+    setFormCategory("");
+    setFormPrice("");
+    setFormStock("");
+    setShowAddModal(true);
+  };
+
+  // Populate form and open edit modal
+  const openEditModal = (product: Product) => {
+    setFormName(product.name);
+    setFormSku(product.sku);
+    setFormCategory(product.category);
+    setFormPrice(product.price.toString());
+    setFormStock(product.stock.toString());
+    setEditingProduct(product);
+  };
+
+  const closeModal = () => {
+    setShowAddModal(false);
+    setEditingProduct(null);
+  };
+
+  // Create product
+  const createProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
 
-    const body = {
-      name: nameRef.current?.value || "",
-      sku: skuRef.current?.value || "",
-      category: categoryRef.current?.value || "",
-      price: parseFloat(priceRef.current?.value || "0"),
-      stockQuantity: parseInt(stockRef.current?.value || "0"),
+    const productData = {
+      name: formName,
+      sku: formSku,
+      category: formCategory,
+      price: parseFloat(formPrice),
+      stock: parseInt(formStock),
     };
 
     try {
-      let res: Response;
-      if (editingProduct) {
-        res = await fetch(`${API_BASE}/api/products/${editingProduct.id}`, {
-          method: "PUT",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(body),
-        });
+      if (isDemo) {
+        const newProduct: Product = { ...productData, id: demoNextId++ };
+        setProducts((prev) => [...prev, newProduct]);
       } else {
-        res = await fetch(`${API_BASE}/api/products`, {
+        const res = await fetch("/api/products", {
           method: "POST",
-          headers: getAuthHeaders(),
-          body: JSON.stringify(body),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(productData),
         });
+        const newProduct = await res.json();
+        setProducts((prev) => [...prev, newProduct]);
       }
-
-      const data = await res.json();
-
-      if (data.success) {
-        showToast(editingProduct ? "Product updated!" : "Product added!", "success");
-        setShowAddModal(false);
-        setEditingProduct(null);
-        fetchProducts(pagination.page, searchQuery, selectedCategory);
-      } else {
-        showToast(data.error || "Failed to save product", "error");
-      }
+      closeModal();
+      showToast("Product created successfully!", "success");
     } catch {
-      showToast("Failed to connect to server", "error");
+      showToast("Failed to create product", "error");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Pagination handlers
-  const goToPage = (page: number) => {
-    if (page < 1 || page > pagination.totalPages) return;
-    fetchProducts(page, searchQuery, selectedCategory);
+  // Update product
+  const updateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+    setIsSaving(true);
+
+    const productData = {
+      name: formName,
+      sku: formSku,
+      category: formCategory,
+      price: parseFloat(formPrice),
+      stock: parseInt(formStock),
+    };
+
+    try {
+      if (isDemo) {
+        const updated = { ...editingProduct, ...productData };
+        setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      } else {
+        const res = await fetch(`/api/products/${editingProduct.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(productData),
+        });
+        const updated = await res.json();
+        setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      }
+      closeModal();
+      showToast("Product updated successfully!", "success");
+    } catch {
+      showToast("Failed to update product", "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Delete product
+  const deleteProduct = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (!isDemo) {
+        await fetch(`/api/products/${deleteTarget.id}`, { method: "DELETE" });
+      }
+      setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      setDeleteTarget(null);
+      showToast("Product deleted successfully!", "success");
+    } catch {
+      showToast("Failed to delete product", "error");
+    }
   };
 
   if (!mounted) {
@@ -315,8 +255,8 @@ export default function ProductsPage() {
             exit={{ opacity: 0, y: -20, x: "-50%" }}
             className={`fixed top-6 left-1/2 z-[100] flex items-center gap-3 px-6 py-3 rounded-xl border backdrop-blur-xl shadow-2xl ${
               toast.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
-                : "bg-red-50 border-red-200 text-red-700"
+                ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                : "bg-red-500/10 border-red-500/20 text-red-400"
             }`}
           >
             {toast.type === "success" ? <CheckCircle size={18} /> : <AlertCircle size={18} />}
@@ -329,7 +269,7 @@ export default function ProductsPage() {
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-8"
+        className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8"
       >
         <div>
           <h1 className="text-4xl font-bold mb-2">
@@ -337,13 +277,19 @@ export default function ProductsPage() {
             <span className="text-gradient">Management</span>
           </h1>
           <p className="text-[var(--text-secondary)]">
-            Manage your inventory products
+            Manage your inventory products&nbsp;
+            <span className="text-[var(--text-muted)]">• {products.length} total</span>
+            {isDemo && (
+              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                Demo Mode
+              </span>
+            )}
           </p>
         </div>
         <motion.button
           whileHover={{ scale: 1.02, y: -2 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => setShowAddModal(true)}
+          onClick={openAddModal}
           className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-medium shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all duration-300"
         >
           <Plus size={20} />
@@ -365,7 +311,7 @@ export default function ProductsPage() {
           />
           <input
             type="text"
-            placeholder="Search products..."
+            placeholder="Search by name or SKU..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-xl outline-none focus:border-indigo-500/30 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-300 text-[var(--text-primary)] placeholder-[var(--text-muted)]"
@@ -379,10 +325,8 @@ export default function ProductsPage() {
             className="px-4 py-3 bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-xl outline-none focus:border-indigo-500/30 transition-all duration-300 text-[var(--text-primary)]"
           >
             <option value="all">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
+            {productCategories.map((cat) => (
+              <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
         </div>
@@ -393,34 +337,20 @@ export default function ProductsPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="relative overflow-hidden rounded-2xl bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-xl shadow-black/20"
+        className="relative overflow-hidden rounded-2xl bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-xl"
       >
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
         <div className="relative overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-[var(--glass-border)] bg-[var(--background-secondary)]">
-                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">
-                  Product
-                </th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">
-                  SKU
-                </th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">
-                  Category
-                </th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">
-                  Price
-                </th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">
-                  Stock
-                </th>
-                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">
-                  Status
-                </th>
-                <th className="text-right px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">
-                  Actions
-                </th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">Product</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">SKU</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">Category</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">Price</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">Stock</th>
+                <th className="text-left px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">Status</th>
+                <th className="text-right px-6 py-4 text-sm font-semibold text-[var(--text-secondary)]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -435,242 +365,214 @@ export default function ProductsPage() {
                 </tr>
               ) : (
                 <AnimatePresence>
-                  {products.map((product, index) => {
-                    const status = statusConfig[product.status as keyof typeof statusConfig] || statusConfig["in-stock"];
+                  {filteredProducts.map((product, index) => {
+                    const status = getStatus(product.stock);
+                    const styles = statusStyles[status];
                     return (
-                    <motion.tr
-                      key={product.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, x: -100 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b border-[var(--glass-border)] hover:bg-indigo-500/5 transition-colors group"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <motion.div
-                            whileHover={{ scale: 1.1, rotate: 5 }}
-                            className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20"
-                          >
-                            <Package
-                              size={20}
-                              className="text-white"
-                            />
-                          </motion.div>
-                          <span className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-indigo)] transition-colors">
-                            {product.name}
+                      <motion.tr
+                        key={product.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -100 }}
+                        transition={{ delay: index * 0.03 }}
+                        className="border-b border-[var(--glass-border)] hover:bg-indigo-500/5 transition-colors group"
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <motion.div
+                              whileHover={{ scale: 1.1, rotate: 5 }}
+                              className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20"
+                            >
+                              <Package size={20} className="text-white" />
+                            </motion.div>
+                            <span className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-indigo)] transition-colors">
+                              {product.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-[var(--text-secondary)] font-mono text-sm">
+                          {product.sku}
+                        </td>
+                        <td className="px-6 py-4 text-[var(--text-secondary)]">
+                          {product.category}
+                        </td>
+                        <td className="px-6 py-4 text-[var(--text-primary)] font-semibold">
+                          ${product.price.toFixed(2)}
+                        </td>
+                        <td className="px-6 py-4 text-[var(--text-secondary)]">
+                          {product.stock} units
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border ${styles.bg} ${styles.text} ${styles.border}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${styles.dot}`} />
+                            {status}
                           </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-[var(--text-secondary)] font-mono text-sm">
-                        {product.sku}
-                      </td>
-                      <td className="px-6 py-4 text-[var(--text-secondary)]">
-                        {product.category}
-                      </td>
-                      <td className="px-6 py-4 text-[var(--text-primary)] font-semibold">
-                        ${product.price.toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 text-[var(--text-secondary)]">
-                        {product.stock} units
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium ${status.bg} ${status.text} border ${status.border}`}
-                        >
-                          <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                          {statusLabels[product.status as keyof typeof statusLabels] || product.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-end gap-2">
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => setEditingProduct(product)}
-                            className="p-2 text-[var(--text-muted)] hover:text-[var(--accent-indigo)] hover:bg-indigo-500/10 rounded-lg transition-all"
-                          >
-                            <Edit2 size={18} />
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleDeleteProduct(product.id)}
-                            className="p-2 text-[var(--text-muted)] hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                          >
-                            <Trash2 size={18} />
-                          </motion.button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  )})}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-end gap-2">
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => openEditModal(product)}
+                              className="p-2 text-[var(--text-muted)] hover:text-[var(--accent-indigo)] hover:bg-indigo-500/10 rounded-lg transition-all"
+                              title="Edit"
+                            >
+                              <Edit2 size={18} />
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => setDeleteTarget(product)}
+                              className="p-2 text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                              title="Delete"
+                            >
+                              <Trash2 size={18} />
+                            </motion.button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
                 </AnimatePresence>
               )}
             </tbody>
           </table>
         </div>
 
-        {!isLoading && products.length === 0 && (
-          <div className="text-center py-12">
-            <Package size={48} className="mx-auto text-slate-300 mb-4" />
-            <p className="text-[var(--text-secondary)]">No products found</p>
-          </div>
+        {/* Empty State */}
+        {!isLoading && filteredProducts.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16 px-6"
+          >
+            <motion.div
+              animate={{ y: [0, -8, 0] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <PackageOpen size={56} className="mx-auto text-[var(--text-muted)] mb-4 opacity-40" />
+            </motion.div>
+            <p className="text-[var(--text-secondary)] text-lg font-medium">No products found</p>
+            <p className="text-[var(--text-muted)] text-sm mt-1">
+              {searchQuery || selectedCategory !== "all"
+                ? "Try adjusting your search or filters"
+                : "Click \"Add Product\" to create your first product"}
+            </p>
+          </motion.div>
         )}
       </motion.div>
 
-      {/* Pagination */}
+      {/* Footer Count */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="flex items-center justify-between mt-6"
+        className="mt-4 text-sm text-[var(--text-muted)]"
       >
-        <p className="text-sm text-[var(--text-secondary)]">
-          Showing {products.length} of {pagination.total} products
-          {pagination.totalPages > 1 && (
-            <span className="ml-2">
-              (Page {pagination.page} of {pagination.totalPages})
-            </span>
-          )}
-        </p>
-        <div className="flex gap-2">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => goToPage(pagination.page - 1)}
-            disabled={pagination.page <= 1}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-[var(--card-bg)] border border-[var(--glass-border)] rounded-xl hover:bg-[var(--hover-bg)] transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ChevronLeft size={16} />
-            Previous
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.02, y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={() => goToPage(pagination.page + 1)}
-            disabled={pagination.page >= pagination.totalPages}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            Next
-            <ChevronRight size={16} />
-          </motion.button>
-        </div>
+        Showing {filteredProducts.length} of {products.length} products
       </motion.div>
 
-      {/* Add/Edit Product Modal */}
+      {/* Add / Edit Product Modal */}
       <AnimatePresence>
         {(showAddModal || editingProduct) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            onClick={() => {
-              setShowAddModal(false);
-              setEditingProduct(null);
-            }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={closeModal}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", duration: 0.5 }}
               onClick={(e) => e.stopPropagation()}
-              className="relative w-full max-w-md overflow-hidden rounded-2xl bg-[var(--card-bg)] shadow-2xl shadow-black/20"
+              className="relative w-full max-w-md overflow-hidden rounded-2xl bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-2xl"
             >
               <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-              <div className="relative p-6">
+              <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-[var(--text-primary)]">
-                    {editingProduct ? "Edit Product" : "Add New Product"}
-                  </h2>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center">
+                      <Package size={20} className="text-white" />
+                    </div>
+                    <h2 className="text-xl font-bold text-[var(--text-primary)]">
+                      {editingProduct ? "Edit Product" : "Add New Product"}
+                    </h2>
+                  </div>
                   <motion.button
                     whileHover={{ scale: 1.1, rotate: 90 }}
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => {
-                      setShowAddModal(false);
-                      setEditingProduct(null);
-                    }}
+                    onClick={closeModal}
                     className="p-2 hover:bg-[var(--hover-bg)] rounded-xl transition-colors"
                   >
                     <X size={20} className="text-[var(--text-muted)]" />
                   </motion.button>
                 </div>
 
-                <form className="space-y-4" onSubmit={handleSubmit}>
+                <form className="space-y-4" onSubmit={editingProduct ? updateProduct : createProduct}>
                   <div>
-                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                      Product Name
-                    </label>
+                    <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Name</label>
                     <input
-                      ref={nameRef}
                       type="text"
-                      defaultValue={editingProduct?.name || ""}
+                      value={formName}
+                      onChange={(e) => setFormName(e.target.value)}
                       required
                       className="w-full px-4 py-3 bg-[var(--background-secondary)] border border-[var(--glass-border)] rounded-xl outline-none focus:border-indigo-500/30 focus:ring-4 focus:ring-indigo-500/10 transition-all text-[var(--text-primary)] placeholder-[var(--text-muted)]"
-                      placeholder="Enter product name"
+                      placeholder="Product name"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                        SKU
-                      </label>
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">SKU</label>
                       <input
-                        ref={skuRef}
                         type="text"
-                        defaultValue={editingProduct?.sku || ""}
+                        value={formSku}
+                        onChange={(e) => setFormSku(e.target.value)}
                         required
                         className="w-full px-4 py-3 bg-[var(--background-secondary)] border border-[var(--glass-border)] rounded-xl outline-none focus:border-indigo-500/30 transition-all text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                         placeholder="SKU-001"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                        Category
-                      </label>
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Category</label>
                       <select
-                        ref={categoryRef}
-                        defaultValue={editingProduct?.category || ""}
+                        value={formCategory}
+                        onChange={(e) => setFormCategory(e.target.value)}
                         required
                         className="w-full px-4 py-3 bg-[var(--background-secondary)] border border-[var(--glass-border)] rounded-xl outline-none focus:border-indigo-500/30 transition-all text-[var(--text-primary)]"
                       >
                         <option value="">Select</option>
-                        <option value="Electronics">Electronics</option>
-                        <option value="Furniture">Furniture</option>
-                        <option value="Raw Materials">Raw Materials</option>
-                        <option value="Packaging">Packaging</option>
-                        <option value="Tools">Tools</option>
-                        <option value="Consumables">Consumables</option>
-                        <option value="Spare Parts">Spare Parts</option>
-                        <option value="Other">Other</option>
+                        {CATEGORIES.map((cat) => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                        Price
-                      </label>
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Price ($)</label>
                       <input
-                        ref={priceRef}
                         type="number"
                         step="0.01"
-                        defaultValue={editingProduct?.price || ""}
+                        min="0"
+                        value={formPrice}
+                        onChange={(e) => setFormPrice(e.target.value)}
                         required
                         className="w-full px-4 py-3 bg-[var(--background-secondary)] border border-[var(--glass-border)] rounded-xl outline-none focus:border-indigo-500/30 transition-all text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                         placeholder="0.00"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                        Stock
-                      </label>
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Stock</label>
                       <input
-                        ref={stockRef}
                         type="number"
-                        defaultValue={editingProduct?.stock ?? ""}
+                        min="0"
+                        value={formStock}
+                        onChange={(e) => setFormStock(e.target.value)}
                         required
                         className="w-full px-4 py-3 bg-[var(--background-secondary)] border border-[var(--glass-border)] rounded-xl outline-none focus:border-indigo-500/30 transition-all text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                         placeholder="0"
@@ -678,15 +580,33 @@ export default function ProductsPage() {
                     </div>
                   </div>
 
+                  {/* Live status preview */}
+                  {formStock && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="flex items-center gap-2 text-sm text-[var(--text-muted)]"
+                    >
+                      <span>Status preview:</span>
+                      {(() => {
+                        const s = getStatus(parseInt(formStock) || 0);
+                        const st = statusStyles[s];
+                        return (
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border ${st.bg} ${st.text} ${st.border}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                            {s}
+                          </span>
+                        );
+                      })()}
+                    </motion.div>
+                  )}
+
                   <div className="flex gap-3 pt-4">
                     <motion.button
                       type="button"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      onClick={() => {
-                        setShowAddModal(false);
-                        setEditingProduct(null);
-                      }}
+                      onClick={closeModal}
                       className="flex-1 px-4 py-3 border border-[var(--glass-border)] text-[var(--text-secondary)] rounded-xl hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-all"
                     >
                       Cancel
@@ -703,12 +623,70 @@ export default function ProductsPage() {
                           <Loader2 size={18} className="animate-spin" />
                           Saving...
                         </>
+                      ) : editingProduct ? (
+                        "Update Product"
                       ) : (
-                        editingProduct ? "Update" : "Add Product"
+                        "Add Product"
                       )}
                     </motion.button>
                   </div>
                 </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setDeleteTarget(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-sm rounded-2xl bg-[var(--card-bg)] backdrop-blur-xl border border-[var(--glass-border)] shadow-2xl p-6 text-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", delay: 0.1 }}
+                className="w-14 h-14 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center"
+              >
+                <AlertTriangle size={28} className="text-red-400" />
+              </motion.div>
+              <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">Delete Product</h3>
+              <p className="text-[var(--text-secondary)] text-sm mb-6">
+                Are you sure you want to delete{" "}
+                <strong className="text-[var(--text-primary)]">{deleteTarget.name}</strong>?
+                This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setDeleteTarget(null)}
+                  className="flex-1 px-4 py-3 border border-[var(--glass-border)] text-[var(--text-secondary)] rounded-xl hover:bg-[var(--hover-bg)] transition-all"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={deleteProduct}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl font-medium shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all flex items-center justify-center gap-2"
+                >
+                  <Trash2 size={16} />
+                  Delete
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>

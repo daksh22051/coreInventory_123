@@ -3,6 +3,9 @@
 /* ===== SOFT LIGHT THEME (DEFAULT) ===== */
 :root,
 [data-theme="light"] {
+  /* Dynamic accent color (set via JS) */
+  --accent-color: #10b981;
+
   --background: #f1f5f9;
   --foreground: #1e293b;
   --background-secondary: #e2e8f0;
@@ -52,13 +55,13 @@
   --selection-bg: rgba(99, 102, 241, 0.15);
   --selection-color: #1e293b;
 
-  --settings-page-bg: #03030a;
-  --settings-accent-start: #7c3aed;
-  --settings-accent-end: #06b6d4;
-  --settings-card-bg: rgba(6, 7, 17, 0.92);
-  --settings-card-bg-strong: rgba(14, 16, 40, 0.95);
-  --settings-card-border: rgba(124, 58, 237, 0.35);
-  --settings-card-glow: rgba(6, 182, 212, 0.25);
+  --settings-page-bg: #f9fafb;
+  --settings-accent-start: var(--accent-color);
+  --settings-accent-end: var(--accent-color);
+  --settings-card-bg: rgba(255, 255, 255, 0.95);
+  --settings-card-bg-strong: #f0f9ff;
+  --settings-card-border: color-mix(in srgb, var(--accent-color) 30%, transparent);
+  --settings-card-glow: color-mix(in srgb, var(--accent-color) 25%, transparent);
 }
 
 /* ===== DARK THEME ===== */
@@ -111,6 +114,15 @@
 
   --selection-bg: rgba(6, 182, 212, 0.3);
   --selection-color: #e2e8f0;
+
+  /* Settings (dark mode) */
+  --settings-page-bg: #0a0a0f;
+  --settings-accent-start: var(--accent-color);
+  --settings-accent-end: var(--accent-color);
+  --settings-card-bg: rgba(20, 20, 35, 0.9);
+  --settings-card-bg-strong: rgba(30, 30, 50, 0.95);
+  --settings-card-border: color-mix(in srgb, var(--accent-color) 30%, transparent);
+  --settings-card-glow: color-mix(in srgb, var(--accent-color) 20%, transparent);
 }
 
 @theme inline {
@@ -374,28 +386,23 @@ input:focus, select:focus, textarea:focus {
 
 /* ===== SETTINGS THEME ===== */
 .settings-shell {
-  background: radial-gradient(circle at top, rgba(124, 58, 237, 0.25), transparent 45%),
-    radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.2), transparent 40%),
-    var(--settings-page-bg);
-  color: #eff6ff;
+  background: var(--settings-page-bg);
+  color: var(--text-primary);
   min-height: 100vh;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5f5;
-  --text-muted: #94a3b8;
 }
 
 .settings-card {
   border: 1px solid var(--settings-card-border);
   border-radius: 1.5rem;
-  background: linear-gradient(160deg, var(--settings-card-bg), rgba(6, 7, 17, 0.85));
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), 0 2px 15px rgba(6, 7, 17, 0.8);
+  background: linear-gradient(160deg, var(--settings-card-bg), var(--settings-card-bg-strong));
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08), 0 2px 18px var(--settings-card-glow);
   position: relative;
   overflow: hidden;
 }
 
 .settings-card-overlay {
-  background: linear-gradient(180deg, rgba(6, 7, 17, 0.85), rgba(14, 16, 40, 0.95));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  background: linear-gradient(180deg, var(--settings-card-bg), var(--settings-card-bg-strong));
+  border-bottom: 1px solid var(--settings-card-border);
 }
 
 .settings-card-content {
@@ -404,66 +411,95 @@ input:focus, select:focus, textarea:focus {
 }
 
 .settings-tab-inactive {
-  background: rgba(9, 10, 26, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: #cbd5f5;
+  background: var(--settings-card-bg);
+  border: 1px solid var(--settings-card-border);
+  color: var(--text-primary);
 }
 
 .settings-tab-active {
   background: linear-gradient(135deg, var(--settings-accent-start), var(--settings-accent-end));
   color: #fff;
-  box-shadow: 0 15px 40px rgba(124, 58, 237, 0.35);
+  box-shadow: 0 15px 40px var(--settings-card-glow);
 }
 
 .settings-reset-btn {
-  background: rgba(18, 20, 45, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #cbd5f5;
-  box-shadow: 0 10px 30px rgba(11, 12, 34, 0.8);
+  background: var(--settings-card-bg);
+  border: 1px solid var(--settings-card-border);
+  color: var(--text-primary);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08);
 }
 
 .settings-reset-btn:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  background: rgba(27, 29, 61, 0.9);
+  border-color: var(--settings-card-border);
+  background: var(--settings-card-bg-strong);
 }
 
 .settings-save-btn {
   background: linear-gradient(135deg, var(--settings-accent-start), var(--settings-accent-end));
   color: #fff;
-  box-shadow: 0 15px 40px rgba(6, 182, 212, 0.25);
+  box-shadow: 0 15px 40px var(--settings-card-glow);
 }
 
 .settings-input {
-  background: rgba(10, 11, 27, 0.95);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #e2e8f0;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-primary);
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .settings-input:focus {
-  border-color: rgba(124, 58, 237, 0.8);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+  border-color: var(--input-focus-border);
+  box-shadow: 0 0 0 3px var(--input-focus-glow);
 }
 
 .settings-toggle-thumb {
-  background: rgba(6, 7, 17, 0.95);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  background: #ffffff;
+  box-shadow: 0 2px 12px var(--settings-card-glow);
 }
 
 .settings-category-tag {
-  background: rgba(15, 15, 40, 0.85);
-  border: 1px solid rgba(99, 102, 241, 0.4);
-  color: #cbd5f5;
+  background: var(--settings-card-bg-strong);
+  border: 1px solid var(--settings-card-border);
+  color: var(--text-primary);
 }
 
 .settings-notification {
-  background: rgba(7, 8, 24, 0.8);
-  border: 1px solid rgba(14, 16, 40, 0.5);
-  color: #e2e8f0;
+  background: var(--settings-card-bg);
+  border: 1px solid var(--settings-card-border);
+  color: var(--text-primary);
 }
 
 .settings-preview-chip {
-  box-shadow: 0 10px 30px rgba(6, 182, 212, 0.25);
+  box-shadow: 0 10px 30px var(--settings-card-glow);
+}
+
+.settings-warehouse-card {
+  background: var(--settings-card-bg);
+  border: 1px solid var(--settings-card-border);
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.settings-warehouse-card:hover {
+  border-color: var(--settings-accent-start);
+  box-shadow: 0 8px 32px var(--settings-card-glow);
+}
+
+.settings-alert-error {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+}
+
+.settings-alert-success {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.25);
+  color: #6ee7b7;
+}
+
+.settings-alert-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #fcd34d;
 }
 /* ===== SKELETON LOADING ===== */
 @keyframes skeletonShimmer {

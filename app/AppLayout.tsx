@@ -20,7 +20,7 @@ export default function AppLayout({ children, currentPage }: AppLayoutProps) {
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] overflow-hidden">
       <Background3D />
       <Navbar />
-      <main className="relative z-10 pt-20">
+      <main className="relative z-10 pt-16 lg:pt-[6.5rem]">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentPage || "dashboard"}

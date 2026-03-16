@@ -51,6 +51,24 @@ const productSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Warehouse'
   },
+  stockByLocation: [
+    {
+      warehouse: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Warehouse',
+        required: true,
+      },
+      rack: {
+        type: String,
+        default: 'GENERAL',
+      },
+      quantity: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+    },
+  ],
   description: {
     type: String,
     default: ''
@@ -58,6 +76,15 @@ const productSchema = new mongoose.Schema({
   image: {
     type: String,
     default: ''
+  },
+  barcode: {
+    type: String,
+    default: '',
+    index: true
+  },
+  expiryDate: {
+    type: Date,
+    default: null
   },
   isActive: {
     type: Boolean,

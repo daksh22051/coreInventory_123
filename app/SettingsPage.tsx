@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useThemeStore } from "./themeStore";
 import {
   User,
   Building2,
@@ -23,6 +24,21 @@ import {
   LogOut,
   Smartphone,
   Save,
+  Warehouse,
+  Pencil,
+  Trash2,
+  MapPinned,
+  Boxes,
+  Star,
+  Hash,
+  Ruler,
+  ShoppingCart,
+  History,
+  Activity,
+  Clock,
+  Monitor,
+  Globe,
+  CheckCircle2,
 } from "lucide-react";
 
 // Toggle Switch Component
@@ -237,12 +253,218 @@ function NotificationItem({
   );
 }
 
+// Select Field Component
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  icon: Icon,
+  description,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  icon?: React.ElementType;
+  description?: string;
+}) {
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-[var(--text-secondary)]">{label}</label>
+      <div className="relative">
+        {Icon && (
+          <Icon
+            size={18}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+          />
+        )}
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full ${Icon ? "pl-11" : "pl-4"} pr-4 py-3 rounded-xl settings-input outline-none transition-all duration-300 text-[var(--text-primary)]`}
+        >
+          {options.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+      </div>
+      {description && <p className="text-xs text-[var(--text-muted)]">{description}</p>}
+    </div>
+  );
+}
+
+// Warehouse interface
+interface WarehouseItem {
+  id: string;
+  name: string;
+  location: string;
+  capacity: string;
+  isDefault: boolean;
+}
+
+// Warehouse Card Component
+function WarehouseCard({
+  warehouse,
+  onEdit,
+  onDelete,
+  onSetDefault,
+}: {
+  warehouse: WarehouseItem;
+  onEdit: () => void;
+  onDelete: () => void;
+  onSetDefault: () => void;
+}) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      className="p-5 rounded-2xl settings-warehouse-card relative group"
+    >
+      {warehouse.isDefault && (
+        <div className="absolute top-3 right-3">
+          <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
+            <Star size={12} className="fill-amber-400" /> Default
+          </span>
+        </div>
+      )}
+      <div className="flex items-start gap-4">
+        <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-600/30 to-cyan-500/20 border border-indigo-500/20">
+          <Warehouse size={22} className="text-indigo-300" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-[var(--text-primary)] text-base">{warehouse.name}</h3>
+          <div className="flex items-center gap-1.5 mt-1 text-sm text-[var(--text-secondary)]">
+            <MapPinned size={14} />
+            <span className="truncate">{warehouse.location || "No location set"}</span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-1 text-sm text-[var(--text-secondary)]">
+            <Boxes size={14} />
+            <span>{warehouse.capacity ? `${warehouse.capacity} units capacity` : "Unlimited capacity"}</span>
+          </div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[var(--glass-border)]">
+        {!warehouse.isDefault && (
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={onSetDefault}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20 hover:bg-amber-500/20 transition-colors"
+          >
+            <Star size={13} /> Set Default
+          </motion.button>
+        )}
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={onEdit}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+        >
+          <Pencil size={13} /> Edit
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={onDelete}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors ml-auto"
+        >
+          <Trash2 size={13} /> Delete
+        </motion.button>
+      </div>
+    </motion.div>
+  );
+}
+
+// Login History Item Component
+function LoginHistoryItem({
+  device,
+  location,
+  time,
+  icon: Icon,
+  status,
+}: {
+  device: string;
+  location: string;
+  time: string;
+  icon: React.ElementType;
+  status: "success" | "failed";
+}) {
+  return (
+    <div className="flex items-center justify-between py-3 border-b border-[var(--glass-border)] last:border-0">
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-lg ${status === "success" ? "bg-emerald-500/15" : "bg-red-500/15"}`}>
+          <Icon size={16} className={status === "success" ? "text-emerald-400" : "text-red-400"} />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-[var(--text-primary)]">{device}</p>
+          <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+            <Globe size={11} />
+            <span>{location}</span>
+          </div>
+        </div>
+      </div>
+      <div className="text-right">
+        <span className={`text-xs px-2 py-0.5 rounded-full ${
+          status === "success"
+            ? "bg-emerald-500/15 text-emerald-400"
+            : "bg-red-500/15 text-red-400"
+        }`}>
+          {status === "success" ? "Success" : "Failed"}
+        </span>
+        <p className="text-xs text-[var(--text-muted)] mt-1">{time}</p>
+      </div>
+    </div>
+  );
+}
+
+// Activity Log Item Component
+function ActivityLogItem({
+  action,
+  details,
+  time,
+  type,
+}: {
+  action: string;
+  details: string;
+  time: string;
+  type: "info" | "warning" | "success" | "danger";
+}) {
+  const colors = {
+    info: "bg-blue-500/15 text-blue-400",
+    warning: "bg-amber-500/15 text-amber-400",
+    success: "bg-emerald-500/15 text-emerald-400",
+    danger: "bg-red-500/15 text-red-400",
+  };
+
+  return (
+    <div className="flex items-start gap-3 py-3 border-b border-[var(--glass-border)] last:border-0">
+      <div className={`p-1.5 rounded-lg mt-0.5 ${colors[type]}`}>
+        <Activity size={14} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-[var(--text-primary)]">{action}</p>
+        <p className="text-xs text-[var(--text-muted)] mt-0.5 truncate">{details}</p>
+      </div>
+      <div className="flex items-center gap-1 text-xs text-[var(--text-muted)] whitespace-nowrap">
+        <Clock size={11} />
+        <span>{time}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("profile");
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+
+  // Global theme store
+  const { theme, accentColor, setTheme, setAccentColor } = useThemeStore();
 
   // Profile Settings State
   const [profile, setProfile] = useState({
@@ -264,8 +486,13 @@ export default function SettingsPage() {
   // Inventory Settings State
   const [inventory, setInventory] = useState({
     lowStockThreshold: "10",
-    defaultWarehouse: "main",
+    defaultWarehouse: "wh-1",
     categories: ["Electronics", "Clothing", "Home & Garden", "Sports", "Books"],
+    enableLowStockAlerts: true,
+    allowNegativeStock: false,
+    defaultUnitOfMeasure: "pcs",
+    skuPrefix: "SKU",
+    autoSkuGeneration: true,
   });
   const [newCategory, setNewCategory] = useState("");
 
@@ -277,18 +504,53 @@ export default function SettingsPage() {
     systemAlerts: false,
     weeklyReports: true,
     securityAlerts: true,
+    orderValidationAlerts: true,
+    warehouseTransferAlerts: true,
+    emailLowStock: true,
   });
 
-  // Appearance Settings State
+  // Warehouse Settings State
+  const [warehouses, setWarehouses] = useState<WarehouseItem[]>([
+    { id: "wh-1", name: "Main Warehouse", location: "123 Warehouse St, Tech City", capacity: "10000", isDefault: true },
+    { id: "wh-2", name: "Secondary Warehouse", location: "456 Storage Ave, Tech City", capacity: "5000", isDefault: false },
+    { id: "wh-3", name: "Distribution Center", location: "789 Logistics Blvd, Hub City", capacity: "15000", isDefault: false },
+  ]);
+  const [warehouseForm, setWarehouseForm] = useState({ name: "", location: "", capacity: "" });
+  const [editingWarehouseId, setEditingWarehouseId] = useState<string | null>(null);
+  const [showWarehouseForm, setShowWarehouseForm] = useState(false);
+
+  // Appearance Settings State (synced with global theme store)
   const [appearance, setAppearance] = useState({
-    darkMode: true,
-    themeColor: "#3b82f6",
+    darkMode: theme === "dark",
+    themeColor: accentColor,
   });
+
+  // Sync appearance state with global store on changes
+  useEffect(() => {
+    setAppearance({ darkMode: theme === "dark", themeColor: accentColor });
+  }, [theme, accentColor]);
 
   // Security Settings State
   const [security, setSecurity] = useState({
     twoFactorAuth: false,
   });
+
+  // Mock data for login history and activity logs
+  const loginHistory = [
+    { device: "Windows • Chrome 120", location: "New York, US", time: "2 hours ago", icon: Monitor, status: "success" as const },
+    { device: "macOS • Safari 17", location: "San Francisco, US", time: "Yesterday", icon: Monitor, status: "success" as const },
+    { device: "iPhone • iOS 17", location: "Unknown", time: "3 days ago", icon: Smartphone, status: "failed" as const },
+    { device: "Windows • Firefox 121", location: "New York, US", time: "1 week ago", icon: Monitor, status: "success" as const },
+  ];
+
+  const activityLogs = [
+    { action: "Password Changed", details: "Password was updated successfully", time: "2 hours ago", type: "success" as const },
+    { action: "Product Added", details: "New product 'Wireless Headphones' was added to inventory", time: "5 hours ago", type: "info" as const },
+    { action: "Low Stock Alert", details: "Product 'USB-C Cable' fell below threshold (3 units)", time: "1 day ago", type: "warning" as const },
+    { action: "Failed Login Attempt", details: "Login attempt from unknown IP 192.168.1.xxx blocked", time: "2 days ago", type: "danger" as const },
+    { action: "Warehouse Transfer", details: "50 units of 'Keyboard' moved to Distribution Center", time: "3 days ago", type: "info" as const },
+    { action: "Settings Updated", details: "Notification preferences were changed", time: "1 week ago", type: "success" as const },
+  ];
 
   const [savedSnapshot, setSavedSnapshot] = useState(() => ({
     profile: {
@@ -306,8 +568,13 @@ export default function SettingsPage() {
     },
     inventory: {
       lowStockThreshold: "10",
-      defaultWarehouse: "main",
+      defaultWarehouse: "wh-1",
       categories: ["Electronics", "Clothing", "Home & Garden", "Sports", "Books"],
+      enableLowStockAlerts: true,
+      allowNegativeStock: false,
+      defaultUnitOfMeasure: "pcs",
+      skuPrefix: "SKU",
+      autoSkuGeneration: true,
     },
     notifications: {
       lowStockAlerts: true,
@@ -316,10 +583,18 @@ export default function SettingsPage() {
       systemAlerts: false,
       weeklyReports: true,
       securityAlerts: true,
+      orderValidationAlerts: true,
+      warehouseTransferAlerts: true,
+      emailLowStock: true,
     },
+    warehouses: [
+      { id: "wh-1", name: "Main Warehouse", location: "123 Warehouse St, Tech City", capacity: "10000", isDefault: true },
+      { id: "wh-2", name: "Secondary Warehouse", location: "456 Storage Ave, Tech City", capacity: "5000", isDefault: false },
+      { id: "wh-3", name: "Distribution Center", location: "789 Logistics Blvd, Hub City", capacity: "15000", isDefault: false },
+    ],
     appearance: {
-      darkMode: true,
-      themeColor: "#3b82f6",
+      darkMode: theme === "dark",
+      themeColor: accentColor,
     },
     security: {
       twoFactorAuth: false,
@@ -332,10 +607,11 @@ export default function SettingsPage() {
       company,
       inventory,
       notifications,
+      warehouses,
       appearance,
       security,
     }),
-    [profile, company, inventory, notifications, appearance, security]
+    [profile, company, inventory, notifications, warehouses, appearance, security]
   );
 
   const hasUnsavedChanges = useMemo(
@@ -383,6 +659,61 @@ export default function SettingsPage() {
       ...inventory,
       categories: inventory.categories.filter((c) => c !== category),
     });
+  };
+
+  // Warehouse handlers
+  const handleAddWarehouse = () => {
+    if (!warehouseForm.name.trim()) return;
+    const newWh: WarehouseItem = {
+      id: `wh-${Date.now()}`,
+      name: warehouseForm.name.trim(),
+      location: warehouseForm.location.trim(),
+      capacity: warehouseForm.capacity.trim(),
+      isDefault: warehouses.length === 0,
+    };
+    setWarehouses([...warehouses, newWh]);
+    setWarehouseForm({ name: "", location: "", capacity: "" });
+    setShowWarehouseForm(false);
+  };
+
+  const handleEditWarehouse = (id: string) => {
+    const wh = warehouses.find((w) => w.id === id);
+    if (wh) {
+      setWarehouseForm({ name: wh.name, location: wh.location, capacity: wh.capacity });
+      setEditingWarehouseId(id);
+      setShowWarehouseForm(true);
+    }
+  };
+
+  const handleUpdateWarehouse = () => {
+    if (!warehouseForm.name.trim() || !editingWarehouseId) return;
+    setWarehouses(warehouses.map((w) =>
+      w.id === editingWarehouseId
+        ? { ...w, name: warehouseForm.name.trim(), location: warehouseForm.location.trim(), capacity: warehouseForm.capacity.trim() }
+        : w
+    ));
+    setWarehouseForm({ name: "", location: "", capacity: "" });
+    setEditingWarehouseId(null);
+    setShowWarehouseForm(false);
+  };
+
+  const handleDeleteWarehouse = (id: string) => {
+    const wh = warehouses.find((w) => w.id === id);
+    const remaining = warehouses.filter((w) => w.id !== id);
+    if (wh?.isDefault && remaining.length > 0) {
+      remaining[0].isDefault = true;
+    }
+    setWarehouses(remaining);
+  };
+
+  const handleSetDefaultWarehouse = (id: string) => {
+    setWarehouses(warehouses.map((w) => ({ ...w, isDefault: w.id === id })));
+  };
+
+  const handleCancelWarehouseForm = () => {
+    setWarehouseForm({ name: "", location: "", capacity: "" });
+    setEditingWarehouseId(null);
+    setShowWarehouseForm(false);
   };
 
   const handleSave = async () => {
@@ -444,11 +775,19 @@ export default function SettingsPage() {
       setInventory(defaults.inventory);
       setNewCategory("");
     }
+    if (activeTab === "warehouse") {
+      setWarehouses(defaults.warehouses);
+      setWarehouseForm({ name: "", location: "", capacity: "" });
+      setEditingWarehouseId(null);
+      setShowWarehouseForm(false);
+    }
     if (activeTab === "notifications") {
       setNotifications(defaults.notifications);
     }
     if (activeTab === "appearance") {
       setAppearance(defaults.appearance);
+      setTheme(defaults.appearance.darkMode ? "dark" : "light");
+      setAccentColor(defaults.appearance.themeColor);
     }
     if (activeTab === "security") {
       setSecurity(defaults.security);
@@ -461,6 +800,7 @@ export default function SettingsPage() {
   const tabs = [
     { id: "profile", name: "Profile", icon: User },
     { id: "company", name: "Company", icon: Building2 },
+    { id: "warehouse", name: "Warehouse", icon: Warehouse },
     { id: "inventory", name: "Inventory", icon: Package },
     { id: "notifications", name: "Notifications", icon: Bell },
     { id: "appearance", name: "Appearance", icon: Palette },
@@ -519,17 +859,31 @@ export default function SettingsPage() {
           </motion.div>
 
           {(saveMessage || saveError || hasUnsavedChanges) && (
-            <div
-              className={`mb-6 rounded-xl border px-4 py-3 text-sm ${
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className={`mb-6 rounded-xl border px-4 py-3 text-sm flex items-center gap-3 ${
                 saveError
-                  ? "bg-red-50 text-red-700 border-red-200"
+                  ? "settings-alert-error"
                   : saveMessage
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                  : "bg-amber-50 text-amber-700 border-amber-200"
+                  ? "settings-alert-success"
+                  : "settings-alert-warning"
               }`}
             >
+              {saveMessage && !saveError && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: [0, 1.2, 1] }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <CheckCircle2 size={18} className="text-emerald-400" />
+                </motion.div>
+              )}
+              {saveError && <AlertTriangle size={18} className="text-red-400" />}
+              {!saveMessage && !saveError && hasUnsavedChanges && <AlertTriangle size={18} className="text-amber-400" />}
               {saveError || saveMessage || "You have unsaved changes in this page."}
-            </div>
+            </motion.div>
           )}
 
           {/* Tab Navigation */}
@@ -703,6 +1057,119 @@ export default function SettingsPage() {
               </motion.div>
             )}
 
+            {/* Warehouse Settings */}
+            {activeTab === "warehouse" && (
+              <motion.div
+                key="warehouse"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
+              >
+                <SettingsSection title="Manage Warehouses" icon={Warehouse}>
+                  <div className="flex items-center justify-between mb-6">
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      {warehouses.length} warehouse{warehouses.length !== 1 ? "s" : ""} configured
+                    </p>
+                    {!showWarehouseForm && (
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => { setShowWarehouseForm(true); setEditingWarehouseId(null); setWarehouseForm({ name: "", location: "", capacity: "" }); }}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-cyan-500 text-white rounded-xl text-sm font-medium shadow-lg"
+                      >
+                        <Plus size={16} /> Add Warehouse
+                      </motion.button>
+                    )}
+                  </div>
+
+                  {/* Warehouse Form */}
+                  <AnimatePresence>
+                    {showWarehouseForm && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="p-5 rounded-2xl bg-[var(--settings-card-bg-strong)] border border-[var(--settings-card-border)] mb-6">
+                          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-4">
+                            {editingWarehouseId ? "Edit Warehouse" : "New Warehouse"}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <InputField
+                              label="Warehouse Name"
+                              value={warehouseForm.name}
+                              onChange={(value) => setWarehouseForm({ ...warehouseForm, name: value })}
+                              placeholder="e.g. North Depot"
+                              icon={Warehouse}
+                            />
+                            <InputField
+                              label="Location"
+                              value={warehouseForm.location}
+                              onChange={(value) => setWarehouseForm({ ...warehouseForm, location: value })}
+                              placeholder="e.g. 123 Main St"
+                              icon={MapPinned}
+                            />
+                            <InputField
+                              label="Capacity (units)"
+                              value={warehouseForm.capacity}
+                              onChange={(value) => setWarehouseForm({ ...warehouseForm, capacity: value })}
+                              placeholder="e.g. 10000"
+                              icon={Boxes}
+                            />
+                          </div>
+                          <div className="flex items-center gap-3 mt-4">
+                            <motion.button
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={editingWarehouseId ? handleUpdateWarehouse : handleAddWarehouse}
+                              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-cyan-500 text-white rounded-xl text-sm font-medium"
+                            >
+                              <Check size={16} />
+                              {editingWarehouseId ? "Update" : "Create"}
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={handleCancelWarehouseForm}
+                              className="px-5 py-2.5 rounded-xl text-sm font-medium border border-[var(--glass-border)] text-[var(--text-secondary)] hover:bg-white/[0.03] transition-colors"
+                            >
+                              Cancel
+                            </motion.button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Warehouse List */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <AnimatePresence>
+                      {warehouses.map((wh) => (
+                        <WarehouseCard
+                          key={wh.id}
+                          warehouse={wh}
+                          onEdit={() => handleEditWarehouse(wh.id)}
+                          onDelete={() => handleDeleteWarehouse(wh.id)}
+                          onSetDefault={() => handleSetDefaultWarehouse(wh.id)}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+
+                  {warehouses.length === 0 && (
+                    <div className="text-center py-12">
+                      <Warehouse size={48} className="mx-auto text-[var(--text-muted)] mb-3 opacity-40" />
+                      <p className="text-[var(--text-secondary)]">No warehouses configured</p>
+                      <p className="text-sm text-[var(--text-muted)]">Add your first warehouse to get started</p>
+                    </div>
+                  )}
+                </SettingsSection>
+              </motion.div>
+            )}
+
             {/* Inventory Settings */}
             {activeTab === "inventory" && (
               <motion.div
@@ -712,10 +1179,10 @@ export default function SettingsPage() {
                 exit={{ opacity: 0, x: -20 }}
                 className="space-y-6"
               >
-                <SettingsSection title="Inventory Configuration" icon={Package}>
+                <SettingsSection title="Stock Management" icon={Package}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                     <div className="space-y-2">
-                      <label className="block text-sm font-medium text-zinc-400">
+                      <label className="block text-sm font-medium text-[var(--text-secondary)]">
                         Low Stock Threshold
                       </label>
                       <div className="relative">
@@ -729,34 +1196,100 @@ export default function SettingsPage() {
                           onChange={(e) =>
                             setInventory({ ...inventory, lowStockThreshold: e.target.value })
                           }
-                          className="w-full pl-11 pr-4 py-3 settings-input outline-none transition-all duration-300 text-[var(--text-primary)]"
+                          className="w-full pl-11 pr-4 py-3 rounded-xl settings-input outline-none transition-all duration-300 text-[var(--text-primary)]"
                         />
                       </div>
-                      <p className="text-xs text-[var(--text-secondary)]">
+                      <p className="text-xs text-[var(--text-muted)]">
                         Items below this quantity will trigger low stock alerts
                       </p>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium text-slate-600">
-                        Default Warehouse
-                      </label>
-                      <select
-                        value={inventory.defaultWarehouse}
-                        onChange={(e) =>
-                          setInventory({ ...inventory, defaultWarehouse: e.target.value })
-                        }
-                        className="w-full px-4 py-3 settings-input outline-none transition-all duration-300 text-[var(--text-primary)]"
-                      >
-                        <option value="main">Main Warehouse</option>
-                        <option value="secondary">Secondary Warehouse</option>
-                        <option value="distribution">Distribution Center</option>
-                      </select>
+                    <SelectField
+                      label="Default Warehouse"
+                      value={inventory.defaultWarehouse}
+                      onChange={(value) => setInventory({ ...inventory, defaultWarehouse: value })}
+                      options={warehouses.map((w) => ({ value: w.id, label: w.name }))}
+                      icon={Warehouse}
+                      description="Warehouse used for new products by default"
+                    />
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t border-[var(--glass-border)]">
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="font-medium text-[var(--text-primary)]">Enable Low Stock Alerts</p>
+                        <p className="text-sm text-[var(--text-secondary)]">Show warnings when stock falls below threshold</p>
+                      </div>
+                      <ToggleSwitch
+                        enabled={inventory.enableLowStockAlerts}
+                        onChange={(value) => setInventory({ ...inventory, enableLowStockAlerts: value })}
+                        color="green"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <p className="font-medium text-[var(--text-primary)]">Allow Negative Stock</p>
+                        <p className="text-sm text-[var(--text-secondary)]">Allow stock quantities to go below zero</p>
+                      </div>
+                      <ToggleSwitch
+                        enabled={inventory.allowNegativeStock}
+                        onChange={(value) => setInventory({ ...inventory, allowNegativeStock: value })}
+                        color="purple"
+                      />
                     </div>
                   </div>
                 </SettingsSection>
 
-                <SettingsSection title="Product Categories" icon={Package} delay={0.1}>
+                <SettingsSection title="SKU & Units" icon={Hash} delay={0.1}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <InputField
+                      label="SKU Prefix"
+                      value={inventory.skuPrefix}
+                      onChange={(value) => setInventory({ ...inventory, skuPrefix: value })}
+                      placeholder="e.g. SKU, PRD, INV"
+                      icon={Hash}
+                    />
+                    <SelectField
+                      label="Default Unit of Measure"
+                      value={inventory.defaultUnitOfMeasure}
+                      onChange={(value) => setInventory({ ...inventory, defaultUnitOfMeasure: value })}
+                      options={[
+                        { value: "pcs", label: "Pieces (pcs)" },
+                        { value: "kg", label: "Kilograms (kg)" },
+                        { value: "lbs", label: "Pounds (lbs)" },
+                        { value: "liters", label: "Liters (L)" },
+                        { value: "meters", label: "Meters (m)" },
+                        { value: "boxes", label: "Boxes" },
+                        { value: "pallets", label: "Pallets" },
+                      ]}
+                      icon={Ruler}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="font-medium text-[var(--text-primary)]">Automatic SKU Generation</p>
+                      <p className="text-sm text-[var(--text-secondary)]">Auto-generate SKUs for new products using the prefix</p>
+                    </div>
+                    <ToggleSwitch
+                      enabled={inventory.autoSkuGeneration}
+                      onChange={(value) => setInventory({ ...inventory, autoSkuGeneration: value })}
+                      color="indigo"
+                    />
+                  </div>
+                  {inventory.autoSkuGeneration && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      className="mt-3 p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20"
+                    >
+                      <p className="text-xs text-indigo-300">
+                        Example: <span className="font-mono font-semibold">{inventory.skuPrefix || "SKU"}-00001</span>, <span className="font-mono font-semibold">{inventory.skuPrefix || "SKU"}-00002</span>, ...
+                      </p>
+                    </motion.div>
+                  )}
+                </SettingsSection>
+
+                <SettingsSection title="Product Categories" icon={Package} delay={0.2}>
                   <div className="space-y-4">
                     <div className="flex gap-2">
                       <input
@@ -765,7 +1298,7 @@ export default function SettingsPage() {
                         onChange={(e) => setNewCategory(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
                         placeholder="Add new category..."
-                        className="flex-1 px-4 py-3 settings-input outline-none transition-all duration-300 text-[var(--text-primary)] placeholder-slate-400"
+                        className="flex-1 px-4 py-3 rounded-xl settings-input outline-none transition-all duration-300 text-[var(--text-primary)] placeholder-slate-400"
                       />
                       <motion.button
                         whileHover={{ scale: 1.02 }}
@@ -800,8 +1333,9 @@ export default function SettingsPage() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
+                className="space-y-6"
               >
-                <SettingsSection title="Notification Preferences" icon={Bell}>
+                <SettingsSection title="Inventory Alerts" icon={Package}>
                   <NotificationItem
                     title="Low Stock Alerts"
                     description="Get notified when products fall below the stock threshold"
@@ -809,16 +1343,40 @@ export default function SettingsPage() {
                     onChange={(value) => setNotifications({ ...notifications, lowStockAlerts: value })}
                   />
                   <NotificationItem
-                    title="Email Notifications"
-                    description="Receive important updates via email"
-                    enabled={notifications.emailNotifications}
-                    onChange={(value) => setNotifications({ ...notifications, emailNotifications: value })}
+                    title="Email Alerts for Low Stock"
+                    description="Send email notifications when stock is critically low"
+                    enabled={notifications.emailLowStock}
+                    onChange={(value) => setNotifications({ ...notifications, emailLowStock: value })}
                   />
+                </SettingsSection>
+
+                <SettingsSection title="Order & Transfer Alerts" icon={ShoppingCart} delay={0.1}>
                   <NotificationItem
                     title="Order Updates"
                     description="Get notified about new orders and order status changes"
                     enabled={notifications.orderUpdates}
                     onChange={(value) => setNotifications({ ...notifications, orderUpdates: value })}
+                  />
+                  <NotificationItem
+                    title="Order Validation Alerts"
+                    description="Alerts when orders fail validation or require review"
+                    enabled={notifications.orderValidationAlerts}
+                    onChange={(value) => setNotifications({ ...notifications, orderValidationAlerts: value })}
+                  />
+                  <NotificationItem
+                    title="Warehouse Transfer Notifications"
+                    description="Get notified when stock transfers are initiated or completed"
+                    enabled={notifications.warehouseTransferAlerts}
+                    onChange={(value) => setNotifications({ ...notifications, warehouseTransferAlerts: value })}
+                  />
+                </SettingsSection>
+
+                <SettingsSection title="General Notifications" icon={Bell} delay={0.2}>
+                  <NotificationItem
+                    title="Email Notifications"
+                    description="Receive important updates via email"
+                    enabled={notifications.emailNotifications}
+                    onChange={(value) => setNotifications({ ...notifications, emailNotifications: value })}
                   />
                   <NotificationItem
                     title="System Alerts"
@@ -861,7 +1419,10 @@ export default function SettingsPage() {
                     </div>
                     <ToggleSwitch
                       enabled={appearance.darkMode}
-                      onChange={(value) => setAppearance({ ...appearance, darkMode: value })}
+                      onChange={(value) => {
+                        setAppearance({ ...appearance, darkMode: value });
+                        setTheme(value ? "dark" : "light");
+                      }}
                       color="purple"
                     />
                   </div>
@@ -873,7 +1434,10 @@ export default function SettingsPage() {
                     </p>
                     <ColorPicker
                       selectedColor={appearance.themeColor}
-                      onChange={(color) => setAppearance({ ...appearance, themeColor: color })}
+                      onChange={(color) => {
+                        setAppearance({ ...appearance, themeColor: color });
+                        setAccentColor(color);
+                      }}
                     />
                   </div>
                 </SettingsSection>
@@ -953,9 +1517,70 @@ export default function SettingsPage() {
                   )}
                 </SettingsSection>
 
-                <SettingsSection title="Session Management" icon={Shield} delay={0.1}>
+                <SettingsSection title="Password & Access" icon={Lock} delay={0.05}>
+                  <div className="p-4 rounded-xl bg-[var(--settings-card-bg-strong)] border border-[var(--settings-card-border)]">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-blue-500/15">
+                          <Lock size={18} className="text-blue-400" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-[var(--text-primary)]">Password</p>
+                          <p className="text-sm text-[var(--text-secondary)]">Last changed 30 days ago</p>
+                        </div>
+                      </div>
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleTabChange("profile")}
+                        className="px-4 py-2 rounded-lg text-sm font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors"
+                      >
+                        Update Password
+                      </motion.button>
+                    </div>
+                  </div>
+                </SettingsSection>
+
+                <SettingsSection title="Login History" icon={History} delay={0.1}>
+                  <div className="space-y-1">
+                    {loginHistory.map((item, idx) => (
+                      <LoginHistoryItem
+                        key={idx}
+                        device={item.device}
+                        location={item.location}
+                        time={item.time}
+                        icon={item.icon}
+                        status={item.status}
+                      />
+                    ))}
+                  </div>
+                </SettingsSection>
+
+                <SettingsSection title="Activity Logs" icon={Activity} delay={0.15}>
+                  <div className="space-y-1">
+                    {activityLogs.map((item, idx) => (
+                      <ActivityLogItem
+                        key={idx}
+                        action={item.action}
+                        details={item.details}
+                        time={item.time}
+                        type={item.type}
+                      />
+                    ))}
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border border-[var(--glass-border)] text-[var(--text-secondary)] hover:bg-white/[0.03] transition-colors"
+                  >
+                    <History size={15} />
+                    View Full Activity Log
+                  </motion.button>
+                </SettingsSection>
+
+                <SettingsSection title="Session Management" icon={Shield} delay={0.2}>
                   <div className="space-y-4">
-                      <div className="p-4 rounded-xl bg-[var(--settings-card-bg-strong)] border border-[var(--settings-card-border)]">
+                    <div className="p-4 rounded-xl bg-[var(--settings-card-bg-strong)] border border-[var(--settings-card-border)]">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <div className="p-2 rounded-lg bg-emerald-500/20">
@@ -972,6 +1597,27 @@ export default function SettingsPage() {
                       </div>
                     </div>
 
+                    <div className="p-4 rounded-xl bg-[var(--settings-card-bg-strong)] border border-[var(--settings-card-border)]">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-zinc-500/20">
+                            <Monitor size={18} className="text-zinc-400" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-[var(--text-primary)]">macOS • Safari</p>
+                            <p className="text-sm text-[var(--text-secondary)]">San Francisco • Last active 1 day ago</p>
+                          </div>
+                        </div>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 transition-colors"
+                        >
+                          Revoke
+                        </motion.button>
+                      </div>
+                    </div>
+
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
@@ -983,7 +1629,7 @@ export default function SettingsPage() {
                   </div>
                 </SettingsSection>
 
-                <SettingsSection title="Danger Zone" icon={AlertTriangle} delay={0.2}>
+                <SettingsSection title="Danger Zone" icon={AlertTriangle} delay={0.25}>
                   <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
                     <h4 className="font-medium text-red-400 mb-2">Delete Account</h4>
                     <p className="text-sm text-zinc-400 mb-4">

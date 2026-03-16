@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAuthStore } from "./authStore";
 import AppLayout from "./AppLayout";
@@ -15,6 +15,10 @@ import TransfersPage from "./TransfersPage";
 import AdjustmentsPage from "./AdjustmentsPage";
 import MoveHistoryPage from "./MoveHistoryPage";
 import WarehousesPage from "./WarehousesPage";
+import AuditTrailPage from "./AuditTrailPage";
+import CustomDashboardPage from "./CustomDashboardPage";
+import AdvancedAlertsPage from "./AdvancedAlertsPage";
+import APIIntegrationsPage from "./APIIntegrationsPage";
 
 function renderPage(page: string | null) {
   switch (page) {
@@ -36,12 +40,20 @@ function renderPage(page: string | null) {
       return <MoveHistoryPage />;
     case "warehouses":
       return <WarehousesPage />;
+    case "audit-trail":
+      return <AuditTrailPage />;
+    case "custom-dashboard":
+      return <CustomDashboardPage />;
+    case "advanced-alerts":
+      return <AdvancedAlertsPage />;
+    case "api-integrations":
+      return <APIIntegrationsPage />;
     default:
       return <DashboardPage />;
   }
 }
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const page = searchParams.get("page");
@@ -81,5 +93,22 @@ export default function Home() {
     <AppLayout currentPage={page}>
       {renderPage(page)}
     </AppLayout>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-8 h-8 border-2 border-[var(--accent-indigo)] border-t-transparent rounded-full animate-spin" />
+            <p className="text-[var(--text-muted)]">Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <HomeContent />
+    </Suspense>
   );
 }

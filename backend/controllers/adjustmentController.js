@@ -1,6 +1,7 @@
 const InventoryAdjustment = require('../models/InventoryAdjustment');
 const Product = require('../models/Product');
 const { logActivity } = require('../services/activityLogger');
+const { ensureInitialLocationStock, setLocationQuantity } = require('../utils/stockByLocation');
 
 exports.getAdjustments = async (req, res) => {
   try {
@@ -56,9 +57,17 @@ exports.applyAdjustment = async (req, res) => {
 
     // Apply stock changes
     for (const item of adjustment.items) {
-      await Product.findByIdAndUpdate(item.product, {
-        stockQuantity: item.actualQuantity
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(400).json({ success: false, message: 'Adjustment contains an invalid product' });
+      }
+
+      ensureInitialLocationStock(product);
+      setLocationQuantity(product, {
+        warehouseId: adjustment.warehouse,
+        quantity: Number(item.actualQuantity || 0),
       });
+      await product.save();
     }
 
     adjustment.status = 'applied';

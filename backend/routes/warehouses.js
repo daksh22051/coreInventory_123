@@ -7,8 +7,8 @@ router.use(protect);
 
 router.get('/', getWarehouses);
 router.get('/:id', getWarehouse);
-router.post('/', authorize('admin'), createWarehouse);
-router.put('/:id', authorize('admin'), updateWarehouse);
-router.delete('/:id', authorize('admin'), deleteWarehouse);
+router.post('/', createWarehouse);
+router.put('/:id', updateWarehouse);
+router.delete('/:id', deleteWarehouse);
 
 module.exports = router;

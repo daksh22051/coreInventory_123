@@ -45,6 +45,7 @@ function getAuthHeaders(): Record<string, string> {
 
 interface DeliveryItem {
   product: string | { _id: string; name: string; sku?: string };
+  productId?: string;
   quantity: number;
   unitPrice?: number;
 }
@@ -52,6 +53,7 @@ interface DeliveryItem {
 interface DeliveryOrder {
   _id?: string;
   id?: string;
+  orderId?: string;
   orderNumber?: string;
   customer: string;
   address?: string;
@@ -228,32 +230,32 @@ const DEMO_PRODUCTS: ProductOption[] = [
       return;
     }
 
-      const validItems = formData.items.filter((item) => item.product && Number(item.quantity) > 0);
-      if (validItems.length === 0) {
-        setError("At least one product with quantity is required");
+    const validItems = formData.items.filter((item) => item.product && Number(item.quantity) > 0);
+    if (validItems.length === 0) {
+      setError("At least one product with quantity is required");
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      if (fallbackMode) {
+        onSuccess();
+        onClose();
+        setFormData({
+          customer: "",
+          address: "",
+          priority: "normal",
+          items: [{ product: "", quantity: "" }],
+        });
+        setIsSubmitting(false);
         return;
       }
 
-      setIsSubmitting(true);
-
-      try {
-        if (fallbackMode) {
-          onSuccess();
-          onClose();
-          setFormData({
-            customer: "",
-            address: "",
-            priority: "normal",
-            items: [{ product: "", quantity: "" }],
-          });
-          setIsSubmitting(false);
-          return;
-        }
-
-        const payload = {
-          customer: formData.customer,
-          address: formData.address,
-          priority: formData.priority,
+      const payload = {
+        customer: formData.customer,
+        address: formData.address,
+        priority: formData.priority,
         items: validItems.map((item) => ({
           productId: item.product,
           quantity: Number(item.quantity),
@@ -458,8 +460,141 @@ const DEMO_PRODUCTS: ProductOption[] = [
   );
 }
 
+function OrderDetailsModal({
+  isOpen,
+  order,
+  products,
+  onClose,
+}: {
+  isOpen: boolean;
+  order: DeliveryOrder | null;
+  products: ProductOption[];
+  onClose: () => void;
+}) {
+  if (!order) return null;
+
+  const StatusIcon = statusConfig[order.status]?.icon || Clock;
+  const orderId = order.orderId || order.orderNumber || order._id || order.id || "-";
+  const address = order.address || order.shippingAddress || "-";
+  const createdDate = order.createdAt ? new Date(order.createdAt).toLocaleString() : "-";
+  const totalQty = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 24 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 24 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="relative w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-white/10 bg-slate-900/80 text-slate-100 shadow-2xl"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-white/5">
+              <div>
+                <h2 className="text-lg font-bold">Order Details</h2>
+                <p className="text-xs text-slate-300 mt-0.5">Complete shipment information</p>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.92 }}
+                onClick={onClose}
+                className="p-2 rounded-lg hover:bg-white/10 text-slate-300"
+              >
+                <X className="w-5 h-5" />
+              </motion.button>
+            </div>
+
+            <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-76px)]">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs text-slate-400">Order ID</p>
+                  <p className="font-mono text-sm mt-1">{orderId}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs text-slate-400">Customer</p>
+                  <p className="text-sm mt-1">{order.customer}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3 md:col-span-2">
+                  <p className="text-xs text-slate-400">Address</p>
+                  <p className="text-sm mt-1">{address}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs text-slate-400">Priority</p>
+                  <span className={`mt-1 inline-flex px-2.5 py-1 rounded-full text-xs font-medium capitalize ${priorityConfig[order.priority]?.bg || priorityConfig.normal.bg} ${priorityConfig[order.priority]?.text || priorityConfig.normal.text}`}>
+                    {order.priority}
+                  </span>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs text-slate-400">Status</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <StatusIcon className={`w-4 h-4 ${statusConfig[order.status]?.text || "text-slate-300"}`} />
+                    <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium capitalize ${statusConfig[order.status]?.bg || "bg-slate-700"} ${statusConfig[order.status]?.text || "text-slate-200"}`}>
+                      {order.status}
+                    </span>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs text-slate-400">Created Date</p>
+                  <p className="text-sm mt-1">{createdDate}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs text-slate-400">Total Quantity</p>
+                  <p className="text-sm mt-1">{totalQty} units</p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold">Product Items</h3>
+                  <span className="text-xs text-slate-300">{order.items?.length || 0} rows</span>
+                </div>
+                <div className="max-h-64 overflow-auto rounded-lg border border-white/10">
+                  <table className="w-full text-sm">
+                    <thead className="bg-white/10 sticky top-0">
+                      <tr>
+                        <th className="text-left px-3 py-2 font-medium text-slate-200">Product</th>
+                        <th className="text-left px-3 py-2 font-medium text-slate-200">SKU</th>
+                        <th className="text-right px-3 py-2 font-medium text-slate-200">Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(order.items || []).map((item, idx) => {
+                        const productObj = typeof item.product === "string" ? null : item.product;
+                        const productRef = item.productId || (typeof item.product === "string" ? item.product : "");
+                        const fallbackProduct = productRef ? products.find((p) => p._id === productRef) : null;
+                        const productName = productObj?.name || fallbackProduct?.name || (typeof item.product === "string" ? item.product : "-");
+                        const productSku = productObj?.sku || fallbackProduct?.sku || "-";
+                        return (
+                          <tr key={`${productName}-${idx}`} className="border-t border-white/10">
+                            <td className="px-3 py-2 text-slate-100">{productName}</td>
+                            <td className="px-3 py-2 text-slate-300">{productSku}</td>
+                            <td className="px-3 py-2 text-right text-slate-100">{item.quantity}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 export default function DeliveryOrdersPage() {
   const [showModal, setShowModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<DeliveryOrder | null>(null);
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [orders, setOrders] = useState<DeliveryOrder[]>([]);
@@ -544,6 +679,11 @@ export default function DeliveryOrdersPage() {
     showToast("Order Created Successfully", "success");
   };
 
+  const handleViewOrder = (order: DeliveryOrder) => {
+    setSelectedOrder(order);
+    setIsOrderModalOpen(true);
+  };
+
   const updateStatus = async (orderId: string, status: DeliveryOrder["status"]) => {
     try {
       const res = await fetch(`${API_BASE}/api/delivery-orders/${orderId}/status`, {
@@ -564,7 +704,7 @@ export default function DeliveryOrdersPage() {
   };
 
   const filteredOrders = orders.filter((order) => {
-    const id = (order as Record<string, unknown>).orderId as string || order.orderNumber || order._id || order.id || "";
+    const id = order.orderId || order.orderNumber || order._id || order.id || "";
     const matchesSearch =
       id.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customer.toLowerCase().includes(searchQuery.toLowerCase());
@@ -699,7 +839,7 @@ export default function DeliveryOrdersPage() {
                     ) : (
                       filteredOrders.map((order, index) => {
                       const StatusIcon = statusConfig[order.status]?.icon || Clock;
-                      const orderId = (order as Record<string, unknown>).orderId as string || order.orderNumber || order._id || order.id || "";
+                      const orderId = order.orderId || order.orderNumber || order._id || order.id || "";
                       const totalQty = order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0;
                       const itemCount = order.items?.length || 0;
                       const address = order.address || order.shippingAddress || "-";
@@ -750,7 +890,9 @@ export default function DeliveryOrdersPage() {
                               <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
+                                onClick={() => handleViewOrder(order)}
                                 className="p-2 rounded-lg hover:bg-[var(--hover-bg)] text-[var(--text-muted)] hover:text-slate-700"
+                                title="View Order"
                               >
                                 <Eye className="w-4 h-4" />
                               </motion.button>
@@ -815,6 +957,17 @@ export default function DeliveryOrdersPage() {
         onClose={() => setShowModal(false)}
         products={products}
         onSuccess={handleOrderCreated}
+        fallbackMode={false}
+      />
+
+      <OrderDetailsModal
+        isOpen={isOrderModalOpen}
+        order={selectedOrder}
+        products={products}
+        onClose={() => {
+          setIsOrderModalOpen(false);
+          setSelectedOrder(null);
+        }}
       />
 
       <AnimatePresence>

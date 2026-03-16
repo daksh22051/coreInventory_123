@@ -24,6 +24,7 @@ import {
 import { useAuthStore } from "./authStore";
 
 type AuthStep = "LOGIN" | "REQUEST_OTP" | "VERIFY_OTP" | "RESET_PASSWORD" | "SUCCESS";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 // OTP Input Component
 function OTPInput({
@@ -387,20 +388,36 @@ export default function LoginPage() {
   const handleRequestOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    if (!email || !email.includes("@")) {
+      setError("Please enter a valid email address");
+      setIsLoading(false);
+      return;
+    }
 
-    // Demo: accept any valid email format
-    if (email && email.includes("@")) {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.message || "Failed to send OTP");
+        return;
+      }
+
       setStep("VERIFY_OTP");
       setResendTimer(60);
-      setSuccess("OTP sent to your email address");
-    } else {
-      setError("Please enter a valid email address");
+      setSuccess(data.message || "OTP sent to your email address");
+    } catch {
+      setError("Unable to request OTP right now");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   const handleVerifyOTP = async (e: React.FormEvent) => {
@@ -409,32 +426,62 @@ export default function LoginPage() {
     setSuccess("");
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-
-    // Demo: accept "123456" as valid OTP
-    if (otp === "123456" || otp.length === 6) {
-      setStep("RESET_PASSWORD");
-      setSuccess("OTP verified successfully");
-    } else {
-      setError("Invalid OTP. Please try again.");
+    if (otp.length !== 6) {
+      setError("Please enter a valid 6-digit OTP");
+      setIsLoading(false);
+      return;
     }
-    setIsLoading(false);
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.message || "Invalid OTP. Please try again.");
+        return;
+      }
+
+      setStep("RESET_PASSWORD");
+      setSuccess(data.message || "OTP verified successfully");
+    } catch {
+      setError("Unable to verify OTP right now");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResendOTP = async () => {
     if (resendTimer > 0) return;
 
     setError("");
+    setSuccess("");
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
 
-    setResendTimer(60);
-    setSuccess("New OTP sent to your email");
-    setOtp("");
-    setIsLoading(false);
+      if (!res.ok || !data.success) {
+        setError(data.message || "Failed to resend OTP");
+        return;
+      }
+
+      setResendTimer(60);
+      setSuccess(data.message || "New OTP sent to your email");
+      setOtp("");
+    } catch {
+      setError("Unable to resend OTP right now");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -454,11 +501,26 @@ export default function LoginPage() {
 
     setIsLoading(true);
 
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp, password: newPassword }),
+      });
+      const data = await res.json();
 
-    setStep("SUCCESS");
-    setIsLoading(false);
+      if (!res.ok || !data.success) {
+        setError(data.message || "Failed to reset password");
+        return;
+      }
+
+      setSuccess(data.message || "Password reset successful");
+      setStep("SUCCESS");
+    } catch {
+      setError("Unable to reset password right now");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -481,21 +543,21 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-lime-50 to-green-100 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated Background */}
       <div className="absolute inset-0">
         <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl"
+          className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/20 rounded-full blur-3xl"
           animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/20 rounded-full blur-3xl"
+          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-green-500/20 rounded-full blur-3xl"
           animate={{ x: [0, -30, 0], y: [0, -50, 0], scale: [1, 1.2, 1] }}
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute top-1/2 right-1/3 w-64 h-64 bg-indigo-500/15 rounded-full blur-3xl"
+          className="absolute top-1/2 right-1/3 w-64 h-64 bg-lime-500/15 rounded-full blur-3xl"
           animate={{ x: [0, 40, 0], y: [0, -40, 0] }}
           transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
         />
@@ -508,9 +570,9 @@ export default function LoginPage() {
         transition={{ duration: 0.5 }}
         className="relative w-full max-w-md"
       >
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-xl" />
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-green-500/20 rounded-3xl blur-xl" />
 
-        <div className="relative bg-zinc-900/80 backdrop-blur-2xl rounded-3xl border border-white/10 p-8 shadow-2xl overflow-hidden">
+        <div className="relative bg-zinc-900/75 backdrop-blur-2xl rounded-3xl border border-emerald-400/20 p-8 shadow-2xl overflow-hidden">
           {/* Logo */}
           <motion.div
             initial={{ scale: 0 }}
@@ -518,7 +580,7 @@ export default function LoginPage() {
             transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
             className="flex justify-center mb-8"
           >
-            <div className="relative p-4 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg shadow-blue-500/25">
+            <div className="relative p-4 bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl shadow-lg shadow-emerald-500/25">
               {step === "SUCCESS" ? (
                 <CheckCircle size={32} className="text-white" />
               ) : step === "VERIFY_OTP" ? (
@@ -529,7 +591,7 @@ export default function LoginPage() {
                 <Box size={32} className="text-white" />
               )}
               <motion.div
-                className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-400 to-purple-500"
+                className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-green-500"
                 animate={{ opacity: [0, 0.5, 0] }}
                 transition={{ duration: 2, repeat: Infinity }}
               />
@@ -553,8 +615,8 @@ export default function LoginPage() {
                 </div>
 
                 {/* Login Hint */}
-                <div className="mb-6 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                  <p className="text-sm text-blue-400 font-medium mb-1">Demo Credentials:</p>
+                <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                  <p className="text-sm text-emerald-400 font-medium mb-1">Demo Credentials:</p>
                   <p className="text-xs text-zinc-400">Email: admin@coreinventory.com</p>
                   <p className="text-xs text-zinc-400">Password: admin123</p>
                 </div>
@@ -574,14 +636,14 @@ export default function LoginPage() {
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-2">Email Address</label>
                     <div className="relative group">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
                       <input
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter your email"
                         required
-                        className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 outline-none focus:border-blue-500/50 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all duration-300"
+                        className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 outline-none focus:border-emerald-500/50 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all duration-300"
                       />
                     </div>
                   </div>
@@ -589,14 +651,14 @@ export default function LoginPage() {
                   <div>
                     <label className="block text-sm font-medium text-zinc-400 mb-2">Password</label>
                     <div className="relative group">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-blue-400 transition-colors" />
+                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-500 group-focus-within:text-emerald-400 transition-colors" />
                       <input
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
                         required
-                        className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 outline-none focus:border-blue-500/50 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all duration-300"
+                        className="w-full pl-12 pr-12 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-zinc-500 outline-none focus:border-emerald-500/50 focus:bg-white/10 focus:shadow-[0_0_20px_rgba(16,185,129,0.2)] transition-all duration-300"
                       />
                       <button
                         type="button"
@@ -612,7 +674,7 @@ export default function LoginPage() {
                     <button
                       type="button"
                       onClick={() => { setStep("REQUEST_OTP"); setError(""); setSuccess(""); }}
-                      className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                      className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors"
                     >
                       Forgot password?
                     </button>
@@ -623,7 +685,7 @@ export default function LoginPage() {
                     whileTap={{ scale: 0.98 }}
                     type="submit"
                     disabled={isLoading}
-                    className="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl font-semibold text-white hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25 transition-all duration-300 flex items-center justify-center gap-2"
+                    className="w-full py-4 px-6 bg-gradient-to-r from-emerald-600 to-green-600 rounded-xl font-semibold text-white hover:from-emerald-500 hover:to-green-500 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/25 transition-all duration-300 flex items-center justify-center gap-2"
                   >
                     {isLoading ? (
                       <>
@@ -640,7 +702,7 @@ export default function LoginPage() {
                   Don&apos;t have an account?{" "}
                   <button 
                     onClick={() => setShowRequestModal(true)}
-                    className="text-blue-400 hover:text-blue-300 transition-colors"
+                    className="text-emerald-400 hover:text-emerald-300 transition-colors"
                   >
                     Contact Admin
                   </button>

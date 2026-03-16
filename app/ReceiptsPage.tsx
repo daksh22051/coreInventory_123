@@ -29,7 +29,9 @@ import {
   Ban,
   History,
   FileText,
+  ScanLine,
 } from "lucide-react";
+import BarcodeScanner from "./BarcodeScanner";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -809,6 +811,7 @@ function ReceiptModal({
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
   const [formData, setFormData] = useState({
     supplier: "",
     warehouse: "",
@@ -932,6 +935,7 @@ function ReceiptModal({
   };
 
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -1019,15 +1023,26 @@ function ReceiptModal({
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <label className="text-sm font-medium text-[var(--text-secondary)]">Items *</label>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={addItem}
-                    className="flex items-center gap-1 text-sm text-[var(--accent-indigo)] hover:text-[var(--accent-indigo)]"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Item
-                  </motion.button>
+                  <div className="flex items-center gap-2">
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowScanner(true)}
+                      className="flex items-center gap-1 text-sm text-violet-500 hover:text-violet-400"
+                    >
+                      <ScanLine className="w-4 h-4" />
+                      Scan
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={addItem}
+                      className="flex items-center gap-1 text-sm text-[var(--accent-indigo)] hover:text-[var(--accent-indigo)]"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Item
+                    </motion.button>
+                  </div>
                 </div>
                 <div className="space-y-3">
                   {formData.items.map((item, index) => (
@@ -1116,6 +1131,26 @@ function ReceiptModal({
         </motion.div>
       )}
     </AnimatePresence>
+
+      <BarcodeScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        mode="receipt"
+        onScan={(result) => {
+          if (result.product) {
+            const productId = result.product._id;
+            const alreadyAdded = formData.items.some(i => i.product === productId);
+            if (!alreadyAdded) {
+              setFormData(prev => ({
+                ...prev,
+                items: [...prev.items.filter(i => i.product || i.quantity || i.unitCost), { product: productId, quantity: "1", unitCost: String(result.product!.price || "") }],
+              }));
+            }
+          }
+          setShowScanner(false);
+        }}
+      />
+    </>
   );
 }
 

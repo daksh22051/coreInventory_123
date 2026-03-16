@@ -11,11 +11,11 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: ['http://localhost:3000', 'http://localhost:3001'], methods: ['GET', 'POST', 'PUT', 'DELETE'] }
+  cors: { origin: ['http://localhost:3000', 'http://localhost:3001'], methods: ['GET', 'POST', 'PUT', 'DELETE'], credentials: true }
 });
 
 // Middleware
-app.use(cors({ origin: ['http://localhost:3000', 'http://localhost:3001'] }));
+app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
 // Attach io to requests
@@ -34,6 +34,12 @@ app.use('/api/transfers', require('./routes/transfers'));
 app.use('/api/adjustments', require('./routes/adjustments'));
 app.use('/api/warehouses', require('./routes/warehouses'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/alerts', require('./routes/alerts'));
+app.use('/api/export', require('./routes/export'));
+app.use('/api/search', require('./routes/search'));
+app.use('/api/ai', require('./routes/ai'));
+app.use('/api/integrations', require('./routes/integrations'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -43,6 +49,16 @@ app.get('/api/health', (req, res) => {
 // Socket.io
 io.on('connection', (socket) => {
   console.log('🔌 Client connected:', socket.id);
+
+  // Join warehouse-specific rooms
+  socket.on('join:warehouse', (warehouseId) => {
+    socket.join(`warehouse:${warehouseId}`);
+  });
+
+  socket.on('leave:warehouse', (warehouseId) => {
+    socket.leave(`warehouse:${warehouseId}`);
+  });
+
   socket.on('disconnect', () => {
     console.log('🔌 Client disconnected:', socket.id);
   });

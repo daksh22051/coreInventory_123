@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
-  Bell,
   User,
   ChevronDown,
   LogOut,
@@ -17,11 +16,14 @@ import {
   Sun,
   Moon,
   UserCircle,
+  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "./authStore";
 import { useThemeStore } from "./themeStore";
+import { navigationItems } from "./navigationItems";
 import SidebarDrawer from "./Sidebar";
 import CommandPalette from "./CommandPalette";
+import NotificationBell from "./NotificationBell";
 
 export default function Navbar() {
   const router = useRouter();
@@ -32,26 +34,23 @@ export default function Navbar() {
   const displayEmail = user?.email || "admin@coreinventory.com";
 
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
-  const [bellAnimating, setBellAnimating] = useState(false);
 
   // Close menus on outside click
   useEffect(() => {
     const handler = () => {
       setShowUserMenu(false);
-      setShowNotifications(false);
     };
-    if (showUserMenu || showNotifications) {
+    if (showUserMenu) {
       const timer = setTimeout(() => document.addEventListener("click", handler), 0);
       return () => {
         clearTimeout(timer);
         document.removeEventListener("click", handler);
       };
     }
-  }, [showUserMenu, showNotifications]);
+  }, [showUserMenu]);
 
   // Ctrl+K / Cmd+K shortcut
   useEffect(() => {
@@ -82,19 +81,6 @@ export default function Navbar() {
     router.push(href);
   }, [router]);
 
-  const notifications = [
-    { id: 1, message: "Low stock alert: Widget A", time: "5 min ago", type: "warning" },
-    { id: 2, message: "New order received #1234", time: "10 min ago", type: "success" },
-    { id: 3, message: "Inventory report ready", time: "1 hour ago", type: "info" },
-  ];
-
-  const getNotificationDot = (type: string) => {
-    switch (type) {
-      case "warning": return "bg-amber-400";
-      case "success": return "bg-emerald-400";
-      default: return "bg-[var(--neon-cyan)]";
-    }
-  };
 
   return (
     <>
@@ -102,19 +88,20 @@ export default function Navbar() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="fixed top-0 left-0 right-0 z-40 h-20"
+        className="fixed top-0 left-0 right-0 z-40"
       >
         {/* Glass Background */}
         <div className="absolute inset-0 bg-[var(--glass-bg)] backdrop-blur-xl border-b border-[var(--glass-border)]" />
 
-        <div className="relative h-full flex items-center justify-between px-4 lg:px-6">
-          {/* Left: Hamburger + Logo */}
+        {/* Top Bar */}
+        <div className="relative h-16 flex items-center justify-between px-4 lg:px-6">
+          {/* Left: Hamburger (mobile) + Logo */}
           <div className="flex items-center gap-3">
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setDrawerOpen(true)}
-              className="p-2.5 rounded-xl border border-[var(--glass-border)] bg-[var(--hover-bg)] hover:border-[var(--glass-border-hover)] transition-all duration-300"
+              className="lg:hidden p-2.5 rounded-xl border border-[var(--glass-border)] bg-[var(--hover-bg)] hover:border-[var(--glass-border-hover)] transition-all duration-300"
             >
               <Menu size={20} className="text-[var(--text-secondary)]" />
             </motion.button>
@@ -207,79 +194,7 @@ export default function Navbar() {
             </motion.button>
 
             {/* Notifications */}
-            <div className="relative">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowNotifications(!showNotifications);
-                  setShowUserMenu(false);
-                  if (!showNotifications) {
-                    setBellAnimating(true);
-                    setTimeout(() => setBellAnimating(false), 800);
-                  }
-                }}
-                className="relative p-2.5 rounded-xl border border-[var(--glass-border)] bg-[var(--hover-bg)]
-                  hover:border-[var(--glass-border-hover)] hover:shadow-lg hover:shadow-[var(--glow-cyan)]
-                  transition-all duration-300"
-              >
-                <Bell size={18} className={`text-[var(--text-secondary)] ${bellAnimating ? "bell-wiggle" : ""}`} />
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[var(--background)]"
-                />
-              </motion.button>
-
-              <AnimatePresence>
-                {showNotifications && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="absolute right-0 mt-3 w-80
-                      bg-[var(--card-bg)] backdrop-blur-xl
-                      rounded-2xl border border-[var(--glass-border)]
-                      shadow-2xl shadow-black/30 overflow-hidden"
-                  >
-                    <div className="p-4 border-b border-[var(--glass-border)] flex items-center justify-between bg-gradient-to-r from-indigo-500/10 to-purple-500/10">
-                      <h3 className="font-semibold text-[var(--text-primary)]">Notifications</h3>
-                      <span className="text-xs text-[var(--accent-indigo)] bg-indigo-500/10 px-2.5 py-1 rounded-full font-medium">
-                        3 new
-                      </span>
-                    </div>
-                    <ul className="max-h-80 overflow-y-auto">
-                      {notifications.map((notification, index) => (
-                        <motion.li
-                          key={notification.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="p-4 border-b border-[var(--glass-border)] last:border-0
-                            hover:bg-[var(--hover-bg)] cursor-pointer transition-colors"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className={`w-2 h-2 rounded-full mt-2 ${getNotificationDot(notification.type)}`} />
-                            <div>
-                              <p className="text-sm text-[var(--text-primary)] font-medium">{notification.message}</p>
-                              <p className="text-xs text-[var(--text-muted)] mt-1">{notification.time}</p>
-                            </div>
-                          </div>
-                        </motion.li>
-                      ))}
-                    </ul>
-                    <div className="p-3 border-t border-[var(--glass-border)]">
-                      <button className="w-full py-2 text-sm text-[var(--accent-indigo)] hover:text-[var(--accent-purple)] font-medium transition-colors">
-                        View all notifications
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            <NotificationBell />
 
             {/* User Menu */}
             <div className="relative ml-1">
@@ -289,7 +204,6 @@ export default function Navbar() {
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowUserMenu(!showUserMenu);
-                  setShowNotifications(false);
                 }}
                 className="flex items-center gap-2.5 p-1.5 pr-3 rounded-xl
                   border border-[var(--glass-border)] bg-[var(--hover-bg)]
@@ -353,17 +267,6 @@ export default function Navbar() {
                         <Settings size={16} />
                         Settings
                       </motion.button>
-                      <motion.button
-                        whileHover={{ x: 4, backgroundColor: "rgba(99, 102, 241, 0.06)" }}
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          setShowNotifications(true);
-                        }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-[var(--text-secondary)] hover:text-[var(--accent-indigo)] transition-all"
-                      >
-                        <Bell size={16} />
-                        Notifications
-                      </motion.button>
                       <div className="my-1 border-t border-[var(--glass-border)]" />
                       <motion.button
                         whileHover={{ x: 4, backgroundColor: "rgba(248, 113, 113, 0.08)" }}
@@ -380,6 +283,44 @@ export default function Navbar() {
             </div>
           </div>
         </div>
+
+        {/* Navigation Tabs (Desktop) */}
+        <nav className="relative hidden lg:block border-t border-[var(--glass-border)]/50">
+          <div className="px-6 flex items-center gap-1 overflow-x-auto scrollbar-hide">
+            {navigationItems.map((item) => {
+              const isActive = currentPage === item.page;
+              return (
+                <motion.button
+                  key={item.name}
+                  onClick={() => router.push(item.href)}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.97 }}
+                  className={`
+                    relative flex items-center gap-2 px-3.5 py-2.5 text-sm font-medium
+                    whitespace-nowrap transition-all duration-200
+                    ${isActive
+                      ? "text-[var(--accent-indigo)]"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    }
+                  `}
+                >
+                  <item.icon size={16} strokeWidth={1.5} />
+                  <span>{item.name}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="headerNavIndicator"
+                      className="absolute bottom-0 left-2 right-2 h-[2px] bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
+                  )}
+                  {isActive && (
+                    <Sparkles size={12} className="text-[var(--accent-indigo)] ml-0.5" />
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+        </nav>
       </motion.header>
 
       {/* Sidebar Drawer */}

@@ -1,22 +1,30 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { body } = require('express-validator');
-const { signup, login, getMe, updateProfile } = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
-const { validate } = require('../middleware/validate');
 
-router.post('/signup', [
-  body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').isEmail().withMessage('Valid email is required'),
-  body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
-], validate, signup);
+const {
+  signup,
+  login,
+  getMe,
+  updateProfile,
+  requestPasswordReset,
+  verifyOtp,
+  resetPasswordWithOtp
+} = require("../controllers/authController");
 
-router.post('/login', [
-  body('email').isEmail().withMessage('Valid email is required'),
-  body('password').notEmpty().withMessage('Password is required')
-], validate, login);
+const { protect } = require("../middleware/auth");
 
-router.get('/me', protect, getMe);
-router.put('/profile', protect, updateProfile);
+
+// AUTH
+router.post("/signup", signup);
+router.post("/login", login);
+
+// USER
+router.get("/me", protect, getMe);
+router.put("/profile", protect, updateProfile);
+
+// OTP PASSWORD RESET
+router.post("/password", requestPasswordReset);
+router.post("/verify-otp", verifyOtp);
+router.post("/reset-password", resetPasswordWithOtp);
 
 module.exports = router;

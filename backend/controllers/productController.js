@@ -2,6 +2,7 @@ const Product = require('../models/Product');
 const { logActivity } = require('../services/activityLogger');
 const { getStockPrediction, getSmartReorderSuggestions } = require('../services/stockPredictor');
 const { isInMemoryMode } = require('../config/db');
+const { ensureInitialLocationStock } = require('../utils/stockByLocation');
 
 // Demo products for in-memory mode
 let DEMO_PRODUCTS = [
@@ -19,7 +20,7 @@ let DEMO_PRODUCTS = [
 
 exports.getProducts = async (req, res) => {
   try {
-    const { search, category, lowStock, page = 1, limit = 20, sort = '-createdAt' } = req.query;
+    const { search, category, lowStock, warehouse, page = 1, limit = 20, sort = '-createdAt' } = req.query;
 
     // In-memory mode fallback
     if (isInMemoryMode()) {
@@ -30,6 +31,9 @@ exports.getProducts = async (req, res) => {
       }
       if (category) filtered = filtered.filter(p => p.category === category);
       if (lowStock === 'true') filtered = filtered.filter(p => p.stockQuantity <= p.minStockLevel);
+      if (warehouse) {
+        filtered = filtered.filter(p => String(p.warehouse || '') === String(warehouse));
+      }
       
       const total = filtered.length;
       const start = (page - 1) * limit;
@@ -43,21 +47,35 @@ exports.getProducts = async (req, res) => {
     }
 
     const query = { isActive: true };
+    const andFilters = [];
 
     if (search) {
-      query.$or = [
+      andFilters.push({ $or: [
         { name: { $regex: search, $options: 'i' } },
         { sku: { $regex: search, $options: 'i' } }
-      ];
+      ] });
     }
     if (category) query.category = category;
     if (lowStock === 'true') {
       query.$expr = { $lte: ['$stockQuantity', '$minStockLevel'] };
     }
+    if (warehouse) {
+      andFilters.push({
+        $or: [
+        { warehouse },
+        { 'stockByLocation.warehouse': warehouse },
+      ]
+      });
+    }
+
+    if (andFilters.length > 0) {
+      query.$and = andFilters;
+    }
 
     const total = await Product.countDocuments(query);
     const products = await Product.find(query)
       .populate('warehouse', 'name code')
+      .populate('stockByLocation.warehouse', 'name code')
       .sort(sort)
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -83,7 +101,9 @@ exports.getProduct = async (req, res) => {
       if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
       return res.json({ success: true, data: product });
     }
-    const product = await Product.findById(req.params.id).populate('warehouse', 'name code');
+    const product = await Product.findById(req.params.id)
+      .populate('warehouse', 'name code')
+      .populate('stockByLocation.warehouse', 'name code');
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
@@ -98,15 +118,33 @@ exports.createProduct = async (req, res) => {
   try {
     if (isInMemoryMode()) {
       const newProduct = { _id: Date.now().toString(), ...req.body, isActive: true };
+      if (!newProduct.stockByLocation && newProduct.warehouse && Number(newProduct.stockQuantity || 0) > 0) {
+        newProduct.stockByLocation = [{ warehouse: newProduct.warehouse, rack: 'GENERAL', quantity: Number(newProduct.stockQuantity || 0) }];
+      }
       DEMO_PRODUCTS.push(newProduct);
       return res.status(201).json({ success: true, data: newProduct });
     }
     req.body.createdBy = req.user._id;
     const product = await Product.create(req.body);
+    ensureInitialLocationStock(product);
+    await product.save();
 
     await logActivity(req.user._id, 'product_created', 'Product', product._id, `Product created: ${product.name}`);
 
-    if (req.io) req.io.emit('product_update', { action: 'created', product });
+    if (req.io) {
+      req.io.emit('product_update', { action: 'created', product });
+      if (Number(product.stockQuantity || 0) <= Number(product.minStockLevel || 0)) {
+        req.io.emit('notification:new', {
+          type: 'low_stock',
+          productId: product._id,
+          sku: product.sku,
+          name: product.name,
+          stockQuantity: product.stockQuantity,
+          minStockLevel: product.minStockLevel,
+        });
+      }
+      req.io.emit('dashboard:refresh', { timestamp: new Date() });
+    }
 
     res.status(201).json({ success: true, data: product });
   } catch (error) {
@@ -122,17 +160,46 @@ exports.updateProduct = async (req, res) => {
       DEMO_PRODUCTS[idx] = { ...DEMO_PRODUCTS[idx], ...req.body };
       return res.json({ success: true, data: DEMO_PRODUCTS[idx] });
     }
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    });
+
+    const oldProduct = await Product.findById(req.params.id).lean();
+    const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    await logActivity(req.user._id, 'product_updated', 'Product', product._id, `Product updated: ${product.name}`);
+    Object.assign(product, req.body);
+    ensureInitialLocationStock(product);
+    await product.save();
 
-    if (req.io) req.io.emit('product_update', { action: 'updated', product });
+    await logActivity(req.user._id, 'product_updated', 'Product', product._id, `Product updated: ${product.name}`, {
+      changes: req.body,
+      oldStock: oldProduct?.stockQuantity,
+      newStock: product.stockQuantity
+    });
+
+    if (req.io) {
+      req.io.emit('product_update', { action: 'updated', product });
+      if (Number(product.stockQuantity || 0) <= Number(product.minStockLevel || 0)) {
+        req.io.emit('notification:new', {
+          type: 'low_stock',
+          productId: product._id,
+          sku: product.sku,
+          name: product.name,
+          stockQuantity: product.stockQuantity,
+          minStockLevel: product.minStockLevel,
+        });
+      }
+      if (oldProduct && oldProduct.stockQuantity !== product.stockQuantity) {
+        req.io.emit('stock:updated', {
+          productId: product._id,
+          productName: product.name,
+          oldQty: oldProduct.stockQuantity,
+          newQty: product.stockQuantity,
+          warehouseId: product.warehouse
+        });
+      }
+      req.io.emit('dashboard:refresh', { timestamp: new Date() });
+    }
 
     res.json({ success: true, data: product });
   } catch (error) {
@@ -155,7 +222,11 @@ exports.deleteProduct = async (req, res) => {
 
     await logActivity(req.user._id, 'product_deleted', 'Product', product._id, `Product deleted: ${product.name}`);
 
-    if (req.io) req.io.emit('product_update', { action: 'deleted', productId: req.params.id });
+    if (req.io) {
+      req.io.emit('product_update', { action: 'deleted', productId: req.params.id });
+      req.io.emit('notification:new', { type: 'product_deleted', productId: req.params.id });
+      req.io.emit('dashboard:refresh', { timestamp: new Date() });
+    }
 
     res.json({ success: true, message: 'Product deleted' });
   } catch (error) {
@@ -185,7 +256,9 @@ exports.getLowStockProducts = async (req, res) => {
     const products = await Product.find({
       isActive: true,
       $expr: { $lte: ['$stockQuantity', '$minStockLevel'] }
-    }).populate('warehouse', 'name code');
+    })
+      .populate('warehouse', 'name code')
+      .populate('stockByLocation.warehouse', 'name code');
     res.json({ success: true, data: products });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

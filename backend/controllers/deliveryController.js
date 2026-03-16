@@ -2,6 +2,7 @@ const DeliveryOrder = require('../models/DeliveryOrder');
 const Product = require('../models/Product');
 const { logActivity } = require('../services/activityLogger');
 const { isInMemoryMode } = require('../config/db');
+const { applyDeltaByLocation, ensureInitialLocationStock } = require('../utils/stockByLocation');
 
 let DEMO_DELIVERY_ORDERS = [
   {
@@ -87,13 +88,38 @@ exports.getDeliveries = async (req, res) => {
 // Legacy delivery-orders API (public-style payload)
 exports.getDeliveryOrdersLegacy = async (req, res) => {
   try {
+    const { status = 'all', warehouse = 'all', limit } = req.query;
+
     if (isInMemoryMode()) {
-      return res.json({ success: true, data: DEMO_DELIVERY_ORDERS });
+      let data = [...DEMO_DELIVERY_ORDERS];
+      if (status && status !== 'all') {
+        data = data.filter((order) => String(order.status) === String(status));
+      }
+      if (limit) {
+        const parsedLimit = Number(limit);
+        if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
+          data = data.slice(0, parsedLimit);
+        }
+      }
+      return res.json({ success: true, data });
     }
 
-    const orders = await DeliveryOrder.find({})
+    const query = {};
+    if (status && status !== 'all') query.status = status;
+    if (warehouse && warehouse !== 'all') query.warehouse = warehouse;
+
+    let ordersQuery = DeliveryOrder.find(query)
       .populate('items.product', 'name sku')
       .sort('-createdAt');
+
+    if (limit) {
+      const parsedLimit = Number(limit);
+      if (Number.isFinite(parsedLimit) && parsedLimit > 0) {
+        ordersQuery = ordersQuery.limit(parsedLimit);
+      }
+    }
+
+    const orders = await ordersQuery;
 
     // Return demo data if database is empty (fresh install)
     if (orders.length === 0) {
@@ -111,6 +137,13 @@ exports.getDeliveryOrdersLegacy = async (req, res) => {
         priority: order.priority,
         items: order.items.map((item) => ({
           productId: item.product?._id || item.product,
+          product: item.product
+            ? {
+              _id: item.product._id,
+              name: item.product.name,
+              sku: item.product.sku,
+            }
+            : null,
           quantity: item.quantity,
         })),
         totalItems,
@@ -188,19 +221,43 @@ exports.createDelivery = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Each product must have a quantity greater than 0' });
     }
 
+    const productDocs = await Product.find({ _id: { $in: items.map((item) => item.product) } }).select('warehouse price');
+    if (productDocs.length !== items.length) {
+      return res.status(400).json({ success: false, message: 'One or more selected products are invalid' });
+    }
+
+    const warehouseIds = [...new Set(productDocs.map((p) => p.warehouse?.toString()).filter(Boolean))];
+    if (warehouseIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Selected products are missing warehouse assignment' });
+    }
+    if (warehouseIds.length > 1) {
+      return res.status(400).json({ success: false, message: 'All delivery items must belong to the same warehouse' });
+    }
+
+    const priceById = new Map(productDocs.map((p) => [p._id.toString(), Number(p.price || 0)]));
+    const itemsWithPrice = items.map((item) => ({
+      ...item,
+      unitPrice: priceById.get(item.product.toString()) || 0,
+    }));
+
     req.body.createdBy = req.user._id;
     const delivery = await DeliveryOrder.create({
       customer,
+      warehouse: warehouseIds[0],
       shippingAddress: address,
       priority,
-      items,
+      items: itemsWithPrice,
       status: status || 'pending',
     });
 
     await logActivity(req.user._id, 'delivery_created', 'DeliveryOrder', delivery._id,
       `Delivery ${delivery.orderNumber} created for ${delivery.customer}`);
 
-    if (req.io) req.io.emit('delivery_update', { action: 'created', delivery });
+    if (req.io) {
+      req.io.emit('delivery_update', { action: 'created', delivery });
+      req.io.emit('delivery:created', { deliveryId: delivery._id, reference: delivery.orderNumber });
+      req.io.emit('dashboard:refresh', { timestamp: new Date() });
+    }
 
     res.status(201).json({ success: true, data: delivery });
   } catch (error) {
@@ -230,31 +287,63 @@ exports.createDeliveryOrderLegacy = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Each item needs a productId and quantity' });
     }
 
+    const productDocs = await Product.find({ _id: { $in: mappedItems.map((item) => item.product) } }).select('warehouse price');
+    if (productDocs.length !== mappedItems.length) {
+      return res.status(400).json({ success: false, message: 'One or more selected products are invalid' });
+    }
+
+    const warehouseIds = [...new Set(productDocs.map((p) => p.warehouse?.toString()).filter(Boolean))];
+    if (warehouseIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'Selected products are missing warehouse assignment' });
+    }
+    if (warehouseIds.length > 1) {
+      return res.status(400).json({ success: false, message: 'All delivery items must belong to the same warehouse' });
+    }
+
+    const priceById = new Map(productDocs.map((p) => [p._id.toString(), Number(p.price || 0)]));
+    const mappedItemsWithPrice = mappedItems.map((item) => ({
+      ...item,
+      unitPrice: priceById.get(item.product.toString()) || 0,
+    }));
+
     if (isInMemoryMode()) {
-      const totalUnits = mappedItems.reduce((sum, item) => sum + item.quantity, 0);
+      const totalUnits = mappedItemsWithPrice.reduce((sum, item) => sum + item.quantity, 0);
       const demo = {
         _id: 'demo-' + Date.now(),
         orderId: 'ORD-' + Date.now().toString(36).toUpperCase(),
         customer,
         address,
         priority: priority || 'normal',
-        items: mappedItems.map((item) => ({ productId: item.product, quantity: item.quantity })),
+        warehouse: warehouseIds[0],
+        items: mappedItemsWithPrice.map((item) => ({ productId: item.product, quantity: item.quantity })),
         totalItems: mappedItems.length,
         totalUnits,
         status: status || 'pending',
         createdAt: new Date().toISOString(),
       };
       DEMO_DELIVERY_ORDERS.unshift(demo);
+      if (req.io) {
+        req.io.emit('delivery_update', { action: 'created', delivery: demo });
+        req.io.emit('notification:new', { type: 'delivery_created', deliveryId: demo._id, reference: demo.orderId });
+        req.io.emit('dashboard:refresh', { timestamp: new Date() });
+      }
       return res.status(201).json({ success: true, data: demo });
     }
 
     const delivery = await DeliveryOrder.create({
       customer,
+      warehouse: warehouseIds[0],
       shippingAddress: address,
       priority: priority || 'normal',
-      items: mappedItems,
+      items: mappedItemsWithPrice,
       status: status || 'pending',
     });
+
+    if (req.io) {
+      req.io.emit('delivery_update', { action: 'created', delivery });
+      req.io.emit('notification:new', { type: 'delivery_created', deliveryId: delivery._id, reference: delivery.orderNumber });
+      req.io.emit('dashboard:refresh', { timestamp: new Date() });
+    }
 
     res.status(201).json({ success: true, data: delivery });
   } catch (error) {
@@ -304,15 +393,32 @@ exports.updateDeliveryStatus = async (req, res) => {
     if (['shipped', 'delivered'].includes(status) && !['shipped', 'delivered'].includes(delivery.status)) {
       for (const item of delivery.items) {
         const product = await Product.findById(item.product);
+        if (!product) {
+          return res.status(400).json({ success: false, message: 'Delivery contains an invalid product' });
+        }
+
+        ensureInitialLocationStock(product);
+
         if (product.stockQuantity < item.quantity) {
           return res.status(400).json({
             success: false,
             message: `Insufficient stock for ${product.name}. Available: ${product.stockQuantity}, Required: ${item.quantity}`
           });
         }
-        await Product.findByIdAndUpdate(item.product, {
-          $inc: { stockQuantity: -item.quantity }
+
+        const locationResult = applyDeltaByLocation(product, {
+          warehouseId: delivery.warehouse,
+          quantityDelta: -Number(item.quantity || 0),
         });
+
+        if (!locationResult.success) {
+          return res.status(400).json({
+            success: false,
+            message: `${locationResult.message} (${product.name})`,
+          });
+        }
+
+        await product.save();
       }
 
       await logActivity(req.user._id, 'delivery_shipped', 'DeliveryOrder', delivery._id,
@@ -328,7 +434,10 @@ exports.updateDeliveryStatus = async (req, res) => {
     delivery.status = status;
     await delivery.save();
 
-    if (req.io) req.io.emit('stock_update', { action: 'delivery_update', delivery });
+    if (req.io) {
+      req.io.emit('stock_update', { action: 'delivery_update', delivery });
+      req.io.emit('dashboard:refresh', { timestamp: new Date() });
+    }
 
     res.json({ success: true, data: delivery });
   } catch (error) {

@@ -2,6 +2,7 @@ const Receipt = require('../models/Receipt');
 const Product = require('../models/Product');
 const { logActivity } = require('../services/activityLogger');
 const { isInMemoryMode } = require('../config/db');
+const { applyDeltaByLocation, ensureInitialLocationStock } = require('../utils/stockByLocation');
 
 // Odoo-style workflow: draft → waiting → ready → done
 const WORKFLOW_ORDER = ['draft', 'waiting', 'ready', 'done'];
@@ -585,11 +586,19 @@ exports.validateReceipt = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot validate receipt with no items. Add products first.' });
     }
 
-    // Update stock for each item
+    // Update stock for each item at the receipt warehouse location
     for (const item of receipt.items) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stockQuantity: item.quantity }
+      const product = await Product.findById(item.product);
+      if (!product) {
+        return res.status(400).json({ success: false, message: 'Receipt contains an invalid product' });
+      }
+
+      ensureInitialLocationStock(product);
+      applyDeltaByLocation(product, {
+        warehouseId: receipt.warehouse,
+        quantityDelta: Number(item.quantity || 0),
       });
+      await product.save();
       console.log(`📦 Stock increased for product ${item.product}: +${item.quantity}`);
     }
 
@@ -609,7 +618,11 @@ exports.validateReceipt = async (req, res) => {
     await logActivity(req.user._id, 'receipt_done', 'Receipt', receipt._id,
       `Receipt ${receipt.receiptNumber} completed - stock updated`);
 
-    if (req.io) req.io.emit('stock_update', { action: 'receipt_done', receipt });
+    if (req.io) {
+      req.io.emit('stock_update', { action: 'receipt_done', receipt });
+      req.io.emit('receipt:created', { receiptId: receipt._id, reference: receipt.receiptNumber });
+      req.io.emit('dashboard:refresh', { timestamp: new Date() });
+    }
 
     res.json({ success: true, data: receipt, message: 'Receipt validated and stock updated!' });
   } catch (error) {

@@ -14,7 +14,7 @@ const {
 // Public legacy delivery-orders routes
 router.get('/', getDeliveryOrdersLegacy);
 router.post('/', createDeliveryOrderLegacy);
-router.put('/:id/status', updateDeliveryOrderLegacy);
+router.put('/legacy/:id/status', updateDeliveryOrderLegacy);
 
 // Authenticated deliveries routes
 router.use(protect);

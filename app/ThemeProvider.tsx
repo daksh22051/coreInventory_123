@@ -4,20 +4,15 @@ import { useEffect, type ReactNode } from "react";
 import { useThemeStore } from "./themeStore";
 
 export default function ThemeProvider({ children }: { children: ReactNode }) {
-  const { theme, _hasHydrated } = useThemeStore();
+  const { theme, accentColor } = useThemeStore();
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
-  // Prevent flash of wrong theme
-  if (!_hasHydrated) {
-    return (
-      <div style={{ visibility: "hidden" }}>
-        {children}
-      </div>
-    );
-  }
+  useEffect(() => {
+    document.documentElement.style.setProperty("--accent-color", accentColor);
+  }, [accentColor]);
 
   return <>{children}</>;
 }
